@@ -1,4 +1,4 @@
-# STM32_I2C_OLED #
+# STM32_SSD1351 #
 
 An STM32F103 "Blue Pill" program to display stuff on a 128x128 pixel
 colour OLED display connected to the SPI interface.
