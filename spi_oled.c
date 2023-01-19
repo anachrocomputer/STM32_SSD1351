@@ -390,6 +390,8 @@ static void updscreen(void)
 
 void OLED_begin(const int wd, const int ht)
 {
+    uint8_t remap = 0x60;
+    
     // Init sequence for SSD1351 128x128 colour OLED module
     oledCmd1b(SSD1351_COMMANDLOCK, 0x12);
     oledCmd1b(SSD1351_COMMANDLOCK, 0xB1);
@@ -408,6 +410,10 @@ void OLED_begin(const int wd, const int ht)
     oledCmd1b(SSD1351_CONTRASTMASTER, 0x0F);
     oledCmd3b(SSD1351_SETVSL, 0xA0, 0xB5, 0x55);
     oledCmd1b(SSD1351_PRECHARGE2, 0x01);
+    
+    remap |= 0x10;   // Flip display vertically
+    
+    oledCmd1b(SSD1351_SETREMAP, remap);
     
     oledCmd(SSD1351_DISPLAYON); // Turn on OLED panel
 }
