@@ -9,8 +9,8 @@
 
 // Size of 128x128 OLED screen
 #define MAXX 128
-#define MAXY 32   // Just one quarter of the screen for now, same as the I2C OLED
-#define MAXROWS 4
+#define MAXY 128
+#define MAXROWS 16
 
 //#include "image.h"
 
@@ -50,6 +50,16 @@
 #define SSD1351_HORIZSCROLL    (0x96)
 #define SSD1351_STOPSCROLL     (0x9E)
 #define SSD1351_STARTSCROLL    (0x9F)
+
+// SSD1351 16-bit 5/6/5 colours
+#define SSD1351_BLACK          (0x0000)
+#define SSD1351_RED            (0x001f)
+#define SSD1351_GREEN          (0x07e0)
+#define SSD1351_BLUE           (0xf800)
+#define SSD1351_CYAN           (SSD1351_BLUE | SSD1351_GREEN)
+#define SSD1351_MAGENTA        (SSD1351_RED  | SSD1351_BLUE)
+#define SSD1351_YELLOW         (SSD1351_RED  | SSD1351_GREEN)
+#define SSD1351_WHITE          (SSD1351_RED  | SSD1351_GREEN | SSD1351_BLUE)
 
 #define UART_RX_BUFFER_SIZE  (128)
 #define UART_RX_BUFFER_MASK (UART_RX_BUFFER_SIZE - 1)
@@ -341,19 +351,14 @@ static void oledCmd3b(const uint8_t c, const uint8_t b1, const uint8_t b2, const
 
 /* updscreen --- update the physical screen from the buffer */
 
-static void updscreen(void)
+static void __attribute__((optimize("O3"))) updscreen(const uint8_t y1, const uint8_t y2, const uint16_t colour)
 {
-    int r, c;
-    int x1, x2, y1, y2;
+    int x, y;
     uint16_t pixel;
+    const int ht = (y2 - y1) + 1;
     volatile uint16_t __attribute__((unused)) junk;
     
-    x1 = 0;
-    x2 = MAXX - 1;
-    y1 = 0;
-    y2 = MAXY - 1;
-    
-    oledCmd2b(SSD1351_SETCOLUMN, x1, x2);
+    oledCmd2b(SSD1351_SETCOLUMN, 0, MAXX - 1);
     oledCmd2b(SSD1351_SETROW, y1, y2);
     
     oledCmd(SSD1351_WRITERAM);
@@ -361,13 +366,13 @@ static void updscreen(void)
     SPI1->CR1 |= SPI_CR1_DFF;    // 16-bit mode for just a bit more speed
     spi_cs(0);
     
-    for (r = 0; r < MAXY; r++)
-        for (c = 0; c < MAXX; c++) {
-            if (Frame[r / 8][c] & (1 << (r % 8))) {
-                pixel = 0xffff;
+    for (y = 0; y < ht; y++)
+        for (x = 0; x < MAXX; x++) {
+            if (Frame[y / 8][x] & (1 << (y % 8))) {
+                pixel = colour;
             }
             else {
-                pixel = 0x0000;
+                pixel = SSD1351_BLACK;
             }
             
             SPI1->DR = pixel;
@@ -1293,7 +1298,7 @@ int main(void)
    
    greyFrame();
     
-   updscreen();
+   updscreen(0, MAXY - 1, SSD1351_WHITE);
    
    printf("\nHello from the STM%dF%d\n", 32, 103);
    
@@ -1321,7 +1326,7 @@ int main(void)
             drawSegCN(1 * width, style);
             drawSegCN(3 * width, style);
             
-            updscreen();
+            updscreen(0, 31, SSD1351_WHITE);
             
             colon += 600u;
          }
@@ -1337,7 +1342,7 @@ int main(void)
             
             renderClockDisplay(width, style);
             
-            updscreen();
+            updscreen(0, 31, SSD1351_WHITE);
             
             colon = millis() + 500u;
          }
@@ -1407,14 +1412,17 @@ int main(void)
             case 'r':
             case 'R':
                setRect(0, 0, MAXX - 1, MAXY - 1);
-               updscreen();
+               updscreen(0, MAXY - 1, SSD1351_WHITE);
                break;
             case 'q':
             case 'Q':
                setVline(MAXX / 4,       0, MAXY - 1);
                setVline(MAXX / 2,       0, MAXY - 1);
                setVline((MAXX * 3) / 4, 0, MAXY - 1);
-               updscreen();
+               setHline(0, MAXX - 1, MAXY / 4);
+               setHline(0, MAXX - 1, MAXY / 2);
+               setHline(0, MAXX - 1, (MAXY * 3) / 4);
+               updscreen(0, MAXY - 1, SSD1351_WHITE);
                break;
             case 'g':
                digit = 0;
@@ -1442,86 +1450,86 @@ int main(void)
                break;
             case '0':
                renderHexDigit(x, 0, style);
-               updscreen();
+               updscreen(0, 31, SSD1351_WHITE);
                break;
             case '1':
                renderHexDigit(x, 1, style);
-               updscreen();
+               updscreen(0, 31, SSD1351_WHITE);
                break;
             case '2':
                renderHexDigit(x, 2, style);
-               updscreen();
+               updscreen(0, 31, SSD1351_WHITE);
                break;
             case '3':
                renderHexDigit(x, 3, style);
-               updscreen();
+               updscreen(0, 31, SSD1351_WHITE);
                break;
             case '4':
                renderHexDigit(x, 4, style);
-               updscreen();
+               updscreen(0, 31, SSD1351_WHITE);
                break;
             case '5':
                renderHexDigit(x, 5, style);
-               updscreen();
+               updscreen(0, 31, SSD1351_WHITE);
                break;
             case '6':
                renderHexDigit(x, 6, style);
-               updscreen();
+               updscreen(0, 31, SSD1351_WHITE);
                break;
             case '7':
                renderHexDigit(x, 7, style);
-               updscreen();
+               updscreen(0, 31, SSD1351_WHITE);
                break;
             case '8':
                renderHexDigit(x, 8, style);
-               updscreen();
+               updscreen(0, 31, SSD1351_WHITE);
                break;
             case '9':
                renderHexDigit(x, 9, style);
-               updscreen();
+               updscreen(0, 31, SSD1351_WHITE);
                break;
             case 'a':
             case 'A':
                renderHexDigit(x, 0xA, style);
-               updscreen();
+               updscreen(0, 31, SSD1351_WHITE);
                break;
             case 'b':
             case 'B':
                renderHexDigit(x, 0xB, style);
-               updscreen();
+               updscreen(0, 31, SSD1351_WHITE);
                break;
             case 'c':
             case 'C':
                renderHexDigit(x, 0xC, style);
-               updscreen();
+               updscreen(0, 31, SSD1351_WHITE);
                break;
             case 'd':
             case 'D':
                renderHexDigit(x, 0xD, style);
-               updscreen();
+               updscreen(0, 31, SSD1351_WHITE);
                break;
             case 'e':
             case 'E':
                renderHexDigit(x, 0xE, style);
-               updscreen();
+               updscreen(0, 31, SSD1351_WHITE);
                break;
             case 'f':
             case 'F':
                renderHexDigit(x, 0xF, style);
-               updscreen();
+               updscreen(0, 31, SSD1351_WHITE);
                break;
             case 'o':
             case 'O':
                //memcpy(Frame, OLEDImage, sizeof (Frame));
-               updscreen();
+               updscreen(0, 31, SSD1351_WHITE);
                break;
             case '.':
                drawSegDP(x, style);
-               updscreen();
+               updscreen(0, 31, SSD1351_WHITE);
                break;
             case ':':
                drawSegCN(x, style);
-               updscreen();
+               updscreen(0, 31, SSD1351_WHITE);
                break;
             case 's':
                state = SETTING_TIME_1;
@@ -1534,7 +1542,7 @@ int main(void)
                drawSegCN(1 * width, style);
                drawSegCN(3 * width, style);
                
-               updscreen();
+               updscreen(0, 31, SSD1351_WHITE);
                
                colon = millis() + 1100u;
                break;
@@ -1565,7 +1573,7 @@ int main(void)
             case 'z':
             case 'Z':
                memset(Frame, 0, sizeof (Frame));
-               updscreen();
+               updscreen(0, MAXY - 1, SSD1351_WHITE);
                break;
             }
             break;
