@@ -55,7 +55,7 @@ spi_oled.elf: spi_oled.o startup_stm32f103xb.o system_stm32f1xx.o
 	$(LD) -mcpu=$(MCU) $(LDFLAGS) startup_stm32f103xb.o system_stm32f1xx.o spi_oled.o
 	$(SZ) $(SZFLAGS) spi_oled.elf
 	
-spi_oled.o: spi_oled.c # image.h
+spi_oled.o: spi_oled.c image.h
 	$(CC) -mcpu=$(MCU) $(CFLAGS) spi_oled.c
 
 system_stm32f1xx.o: $(SYSTEM)
@@ -64,11 +64,11 @@ system_stm32f1xx.o: $(SYSTEM)
 startup_stm32f103xb.o: $(STARTUP)
 	$(CC) -mcpu=$(MCU) $(CFLAGS) $(STARTUP)
 
-#image.h: image.pbm pbm2oled
-#	./pbm2oled image.pbm >image.h
+image.h: image.pbm pbm2oled
+	./pbm2oled image.pbm >image.h
 
-#pbm2oled: pbm2oled.c
-#	gcc -o pbm2oled pbm2oled.c
+pbm2oled: pbm2oled.c
+	gcc -o pbm2oled pbm2oled.c
 
 # Target to invoke the programmer and program the flash memory of the MCU
 prog: spi_oled.bin

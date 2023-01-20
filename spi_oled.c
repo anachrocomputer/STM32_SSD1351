@@ -12,7 +12,7 @@
 #define MAXY 128
 #define MAXROWS 16
 
-//#include "image.h"
+#include "image.h"
 
 // Co-ord of centre of screen
 #define CENX (MAXX / 2)
@@ -359,7 +359,6 @@ static void __attribute__((optimize("O3"))) updscreen(const uint8_t y1, const ui
 {
     int x, y;
     uint16_t pixel;
-    const int ht = (y2 - y1) + 1;
     volatile uint16_t __attribute__((unused)) junk;
     
     oledCmd2b(SSD1351_SETCOLUMN, 0, MAXX - 1);
@@ -370,7 +369,7 @@ static void __attribute__((optimize("O3"))) updscreen(const uint8_t y1, const ui
     SPI1->CR1 |= SPI_CR1_DFF;    // 16-bit mode for just a bit more speed
     spi_cs(0);
     
-    for (y = 0; y < ht; y++)
+    for (y = y1; y <= y2; y++)
         for (x = 0; x < MAXX; x++) {
             if (Frame[y / 8][x] & (1 << (y % 8))) {
                 pixel = colour;
@@ -1343,7 +1342,7 @@ int main(void)
          printf("RTC: %02d:%02d:%02d\n", Hour, Minute, Second);
          
          if (displayMode == AUTO_HMS_MODE) {
-            memset(Frame, 0, sizeof (Frame));
+            memset(Frame, 0, sizeof (Frame) / 4);
             
             renderClockDisplay(width, style);
             
@@ -1525,8 +1524,8 @@ int main(void)
                break;
             case 'o':
             case 'O':
-               //memcpy(Frame, OLEDImage, sizeof (Frame));
-               updscreen(0, 31, SSD1351_WHITE);
+               memcpy(&Frame[4][0], OLEDImage, sizeof (Frame) / 4);
+               updscreen(32, 63, SSD1351_BLUE);
                break;
             case '.':
                drawSegDP(x, style);
