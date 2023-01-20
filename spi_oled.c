@@ -61,6 +61,10 @@
 #define SSD1351_YELLOW         (SSD1351_RED  | SSD1351_GREEN)
 #define SSD1351_WHITE          (SSD1351_RED  | SSD1351_GREEN | SSD1351_BLUE)
 
+#define VFD_COLOUR             SSD1351_CYAN
+#define LED_COLOUR             SSD1351_RED
+#define PANAPLEX_COLOUR        (SSD1351_RED | 0x03e0)
+
 #define UART_RX_BUFFER_SIZE  (128)
 #define UART_RX_BUFFER_MASK (UART_RX_BUFFER_SIZE - 1)
 #if (UART_RX_BUFFER_SIZE & UART_RX_BUFFER_MASK) != 0
@@ -1281,6 +1285,7 @@ int main(void)
    int digit = 0;
    int x = digit * width;
    int style = VFD_STYLE;           // Initially draw digits in Vacuum Fluorescent Display style
+   uint16_t colour = VFD_COLOUR;    // Initially draw in cyan
    int displayMode = MANUAL_MODE;   // Initially operate the display manually
    int state = NOT_SETTING_TIME;
    int hour = 0, minute = 0, second = 0;
@@ -1326,7 +1331,7 @@ int main(void)
             drawSegCN(1 * width, style);
             drawSegCN(3 * width, style);
             
-            updscreen(0, 31, SSD1351_WHITE);
+            updscreen(0, 31, colour);
             
             colon += 600u;
          }
@@ -1342,7 +1347,7 @@ int main(void)
             
             renderClockDisplay(width, style);
             
-            updscreen(0, 31, SSD1351_WHITE);
+            updscreen(0, 31, colour);
             
             colon = millis() + 500u;
          }
@@ -1450,73 +1455,73 @@ int main(void)
                break;
             case '0':
                renderHexDigit(x, 0, style);
-               updscreen(0, 31, SSD1351_WHITE);
+               updscreen(0, 31, colour);
                break;
             case '1':
                renderHexDigit(x, 1, style);
-               updscreen(0, 31, SSD1351_WHITE);
+               updscreen(0, 31, colour);
                break;
             case '2':
                renderHexDigit(x, 2, style);
-               updscreen(0, 31, SSD1351_WHITE);
+               updscreen(0, 31, colour);
                break;
             case '3':
                renderHexDigit(x, 3, style);
-               updscreen(0, 31, SSD1351_WHITE);
+               updscreen(0, 31, colour);
                break;
             case '4':
                renderHexDigit(x, 4, style);
-               updscreen(0, 31, SSD1351_WHITE);
+               updscreen(0, 31, colour);
                break;
             case '5':
                renderHexDigit(x, 5, style);
-               updscreen(0, 31, SSD1351_WHITE);
+               updscreen(0, 31, colour);
                break;
             case '6':
                renderHexDigit(x, 6, style);
-               updscreen(0, 31, SSD1351_WHITE);
+               updscreen(0, 31, colour);
                break;
             case '7':
                renderHexDigit(x, 7, style);
-               updscreen(0, 31, SSD1351_WHITE);
+               updscreen(0, 31, colour);
                break;
             case '8':
                renderHexDigit(x, 8, style);
-               updscreen(0, 31, SSD1351_WHITE);
+               updscreen(0, 31, colour);
                break;
             case '9':
                renderHexDigit(x, 9, style);
-               updscreen(0, 31, SSD1351_WHITE);
+               updscreen(0, 31, colour);
                break;
             case 'a':
             case 'A':
                renderHexDigit(x, 0xA, style);
-               updscreen(0, 31, SSD1351_WHITE);
+               updscreen(0, 31, colour);
                break;
             case 'b':
             case 'B':
                renderHexDigit(x, 0xB, style);
-               updscreen(0, 31, SSD1351_WHITE);
+               updscreen(0, 31, colour);
                break;
             case 'c':
             case 'C':
                renderHexDigit(x, 0xC, style);
-               updscreen(0, 31, SSD1351_WHITE);
+               updscreen(0, 31, colour);
                break;
             case 'd':
             case 'D':
                renderHexDigit(x, 0xD, style);
-               updscreen(0, 31, SSD1351_WHITE);
+               updscreen(0, 31, colour);
                break;
             case 'e':
             case 'E':
                renderHexDigit(x, 0xE, style);
-               updscreen(0, 31, SSD1351_WHITE);
+               updscreen(0, 31, colour);
                break;
             case 'f':
             case 'F':
                renderHexDigit(x, 0xF, style);
-               updscreen(0, 31, SSD1351_WHITE);
+               updscreen(0, 31, colour);
                break;
             case 'o':
             case 'O':
@@ -1525,11 +1530,11 @@ int main(void)
                break;
             case '.':
                drawSegDP(x, style);
-               updscreen(0, 31, SSD1351_WHITE);
+               updscreen(0, 31, colour);
                break;
             case ':':
                drawSegCN(x, style);
-               updscreen(0, 31, SSD1351_WHITE);
+               updscreen(0, 31, colour);
                break;
             case 's':
                state = SETTING_TIME_1;
@@ -1542,7 +1547,7 @@ int main(void)
                drawSegCN(1 * width, style);
                drawSegCN(3 * width, style);
                
-               updscreen(0, 31, SSD1351_WHITE);
+               updscreen(0, 31, colour);
                
                colon = millis() + 1100u;
                break;
@@ -1557,18 +1562,22 @@ int main(void)
             case 'v':
             case 'V':
                style = VFD_STYLE;
+               colour = VFD_COLOUR;
                break;
             case 'w':
             case 'W':
                style = LED_DOT_STYLE;
+               colour = LED_COLOUR;
                break;
             case 'x':
             case 'X':
                style = PANAPLEX_STYLE;
+               colour = PANAPLEX_COLOUR;
                break;
             case 'y':
             case 'Y':
                style = LED_BAR_STYLE;
+               colour = LED_COLOUR;
                break;
             case 'z':
             case 'Z':
