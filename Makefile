@@ -55,7 +55,7 @@ spi_oled.elf: spi_oled.o startup_stm32f103xb.o system_stm32f1xx.o
 	$(LD) -mcpu=$(MCU) $(LDFLAGS) startup_stm32f103xb.o system_stm32f1xx.o spi_oled.o
 	$(SZ) $(SZFLAGS) spi_oled.elf
 	
-spi_oled.o: spi_oled.c image.h
+spi_oled.o: spi_oled.c image.h petrol.h
 	$(CC) -mcpu=$(MCU) $(CFLAGS) spi_oled.c
 
 system_stm32f1xx.o: $(SYSTEM)
@@ -66,6 +66,9 @@ startup_stm32f103xb.o: $(STARTUP)
 
 image.h: image.pbm pbm2oled
 	./pbm2oled image.pbm OLEDImage >image.h
+
+petrol.h: petrol.pbm pbm2oled
+	./pbm2oled petrol.pbm PetrolDigits >petrol.h
 
 pbm2oled: pbm2oled.c
 	gcc -o pbm2oled pbm2oled.c
@@ -85,7 +88,7 @@ teststlink:
 
 # Target 'clean' will delete all object files, ELF files, and BIN files
 clean:
-	-rm -f $(OBJS) $(ELFS) $(BINS) startup_stm32f103xb.o system_stm32f1xx.o pbm2oled image.h
+	-rm -f $(OBJS) $(ELFS) $(BINS) startup_stm32f103xb.o system_stm32f1xx.o pbm2oled image.h petrol.h
 
 .PHONY: clean
 
