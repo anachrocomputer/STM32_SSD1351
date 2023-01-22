@@ -1,59 +1,81 @@
-/* pbm2oled --- convert a bitmap from PBM to OLED 128x32    2015-03-31 */
+/* pbm2oled --- convert a bitmap from PBM to OLED           2015-03-31 */
 /* Copyright (c) 2015 John Honniball. All rights reserved.             */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
+#include <stdbool.h>
 
-// Size of OLED screen
-#define MAXX 128
-#define MAXY 32
-#define MAXROWS 4  // 4 rows of bytes
+// Maximum size of OLED image
+#define MAXX 256
+#define MAXY 256
+#define MAXROWS (MAXY / 8)  // Each row of bytes is 8 pixels
+
+#define BYTES_PER_LINE  (16)  // Number of bytes of image data per line of source code
 
 
-// The frame buffer, 512 bytes
-unsigned char Frame[MAXROWS][MAXX];
+// The frame buffer, 8192 bytes
+uint8_t Frame[MAXROWS][MAXX];
 
-void writeOLED (const char name[]);
-int readPBM (const char name[]);
+void writeOLED(const char name[], const int rows, const int wd);
+bool readPBM(const char name[], int *const htp, int *const wdp);
 
-int main (int argc, char *argv[])
+int main(const int argc, const char *const argv[])
 {
-   if (readPBM (argv[1]))
-      writeOLED (argv[1]);
+   int ht, wd;
+
+   if (argc < 3) {
+      fputs("Usage: pbm2oled <PBM_filename> <C_array_name>\n", stderr);
+      exit(EXIT_FAILURE);
+   }
+   
+   if (readPBM(argv[1], &ht, &wd))
+      writeOLED(argv[2], ht / 8, wd);
       
    return (0);
 }
 
 
-void writeOLED (const char name[])
+/* writeOLED --- write the frame buffer into a C header file */
+
+void writeOLED(const char name[], const int rows, const int wd)
 {
    int x, y;
    
-   puts ("const uint8_t OLEDImage[MAXROWS * MAXX] = {");
+   printf("const uint8_t %s[%d][%d] = {\n", name, rows, wd);
 
-   for (y = 0; y < MAXROWS; y++) {
-      for (x = 0; x < MAXX; x++) {
-         if ((x % 16) == 0)
-            printf ("  ");
+   for (y = 0; y < rows; y++) {
+      printf("   {\n");
+      for (x = 0; x < wd; x++) {
+         if ((x % BYTES_PER_LINE) == 0)
+            printf("      ");
             
          printf ("0x%02x", Frame[y][x]);
          
-         if ((y == MAXROWS - 1) && (x == MAXX - 1))
-            printf ("\n");
-         else if (x == 15)
-            printf (", /* row %d */\n", y);
-         else if ((x % 16) == 15)
-            printf (",\n");
+         if (x == (wd - 1))
+            printf("\n");
+         else if (x == (BYTES_PER_LINE - 1))
+            printf(", /* row %d */\n", y);
+         else if ((x % BYTES_PER_LINE) == (BYTES_PER_LINE - 1))
+            printf(",\n");
          else
-            printf (", ");
+            printf(", ");
       }
+      
+      if (y == (rows - 1))
+         printf("   }\n");
+      else
+         printf("   },\n");
    }
   
-   puts ("};");
+   puts("};");
 }
 
 
-int readPBM (const char name[])
+/* readPBM --- read a binary PBM file into the frame buffer in memory */
+
+bool readPBM(const char name[], int *const htp, int *const wdp)
 {
    FILE *fp;
    char lin[256];
@@ -62,26 +84,27 @@ int readPBM (const char name[])
    int x, y;
    int ch;
    int nb;
-   unsigned char buf[MAXX];
+   int pbmlen;
+   uint8_t buf[MAXX];
    
-   if ((fp = fopen (name, "r")) == NULL) {
-      perror (name);
-      return (0);
+   if ((fp = fopen(name, "r")) == NULL) {
+      perror(name);
+      return (false);
    }
 
    /* Read PBM header */
    fgets (lin, sizeof (lin), fp);
 
    if (lin[0] != 'P') {
-      fprintf (stderr, "Image file '%s' is not a PBM file\n", name);
-      fclose (fp);
-      return (0);
+      fprintf(stderr, "Image file '%s' is not a PBM file\n", name);
+      fclose(fp);
+      return (false);
    }
    
    if (lin[1] != '4') {
-      fprintf (stderr, "Image file '%s' not binary PBM file\n", name);
-      fclose (fp);
-      return (0);
+      fprintf(stderr, "Image file '%s' not binary PBM file\n", name);
+      fclose(fp);
+      return (false);
    }
 
    fgets (lin, sizeof (lin), fp);
@@ -90,36 +113,52 @@ int readPBM (const char name[])
       fgets (lin, sizeof (lin), fp);
 
    /* Read PBM X and Y size */
-   
    sscanf (lin, "%d %d", &xsize, &ysize);
    
    if (xsize > MAXX) {
-      fprintf (stderr, "Image width (%d) exceeds maximum (%d)\n", xsize, MAXX);
-      fclose (fp);
-      return (0);
+      fprintf(stderr, "Image width (%d) exceeds maximum (%d)\n", xsize, MAXX);
+      fclose(fp);
+      return (false);
    }
 
+   if (ysize > MAXY) {
+      fprintf(stderr, "Image height (%d) exceeds maximum (%d)\n", ysize, MAXY);
+      fclose(fp);
+      return (false);
+   }
+   
+   if ((xsize % 8) == 0)
+      pbmlen = xsize / 8;
+   else
+      pbmlen = (xsize / 8) + 1;
+   
    /* Loop through PBM file, reading binary data */
    for (y = 0; y < ysize; y += 8) {
       for (x = 0; x < MAXX; x++)
          Frame[y / 8][x] = 0;
 
       for (i = 0; i < 8; i++) {
-         if ((nb = fread (buf, sizeof (char), MAXX / 8, fp)) != (MAXX / 8)) {
+         if ((nb = fread(buf, sizeof (uint8_t), pbmlen, fp)) != pbmlen) {
             if ((nb == 0) && ((y + i) >= MAXY))
-               memset (buf, 0, sizeof (buf));
+               memset(buf, 0, sizeof (buf));
             else {
-               fprintf (stderr, "EOF!! (%d bytes, row %d)\n", nb, y + i);
-               return (0);
+               fprintf(stderr, "EOF!! (%d bytes, row %d)\n", nb, y + i);
+               return (false);
             }
          }
          
-         for (x = 0; x < MAXX; x++) {
+         for (x = 0; x < xsize; x++) {
             if ((buf[x / 8] & (1 << (7 - (x % 8)))) == 0)
                Frame[y / 8][x] |= (1 << i);
          }
       }
    }
    
-   return (1);
+   if (htp != NULL)
+      *htp = ysize;
+   
+   if (wdp != NULL)
+      *wdp = xsize;
+   
+   return (true);
 }

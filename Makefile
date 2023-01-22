@@ -65,7 +65,7 @@ startup_stm32f103xb.o: $(STARTUP)
 	$(CC) -mcpu=$(MCU) $(CFLAGS) $(STARTUP)
 
 image.h: image.pbm pbm2oled
-	./pbm2oled image.pbm >image.h
+	./pbm2oled image.pbm OLEDImage >image.h
 
 pbm2oled: pbm2oled.c
 	gcc -o pbm2oled pbm2oled.c
@@ -85,7 +85,7 @@ teststlink:
 
 # Target 'clean' will delete all object files, ELF files, and BIN files
 clean:
-	-rm -f $(OBJS) $(ELFS) $(BINS) startup_stm32f103xb.o system_stm32f1xx.o pbm2oled
+	-rm -f $(OBJS) $(ELFS) $(BINS) startup_stm32f103xb.o system_stm32f1xx.o pbm2oled image.h
 
 .PHONY: clean
 
