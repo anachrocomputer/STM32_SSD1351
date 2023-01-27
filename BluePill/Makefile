@@ -8,7 +8,7 @@ ARDUINO=/home/john/.arduino15
 endif
 
 # We need CMSIS from the ST repo STM32CubeF1, which is installed locally
-CMSISDIR=../STM32CubeF1/Drivers/CMSIS
+CMSISDIR=../../STM32CubeF1/Drivers/CMSIS
 
 # ST-LINK is the Open Source tool used to program the STM32
 ifeq ($(OS),Windows_NT)
@@ -67,11 +67,11 @@ startup_stm32f103xb.o: $(STARTUP)
 image.h: image.pbm pbm2oled
 	./pbm2oled image.pbm OLEDImage >image.h
 
-petrol.h: petrol.pbm pbm2oled
-	./pbm2oled petrol.pbm PetrolDigits >petrol.h
+petrol.h: ../petrol.pbm pbm2oled
+	./pbm2oled ../petrol.pbm PetrolDigits >petrol.h
 
-pbm2oled: pbm2oled.c
-	gcc -o pbm2oled pbm2oled.c
+pbm2oled: ../pbm2oled.c
+	gcc -o pbm2oled ../pbm2oled.c
 
 # Target to invoke the programmer and program the flash memory of the MCU
 prog: spi_oled.bin
