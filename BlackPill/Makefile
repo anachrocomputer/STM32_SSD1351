@@ -1,4 +1,4 @@
-# Makefile for bare-metal STM32F103 driving SPI colour OLED display
+# Makefile for bare-metal STM32F411 driving SPI colour OLED display
 
 # We'll pick up the GCC toolchain from the Arduino installation
 ifeq ($(OS),Windows_NT)
@@ -7,7 +7,7 @@ else
 ARDUINO=/home/john/.arduino15
 endif
 
-# We need CMSIS from the ST repo STM32CubeF1, which is installed locally
+# We need CMSIS from the ST repo STM32CubeF4, which is installed locally
 CMSISDIR=../../STM32CubeF4/Drivers/CMSIS
 
 # ST-LINK is the Open Source tool used to program the STM32
@@ -55,7 +55,7 @@ spi_oled.elf: spi_oled.o startup_stm32f411xe.o system_stm32f4xx.o
 	$(LD) -mcpu=$(MCU) $(LDFLAGS) startup_stm32f411xe.o system_stm32f4xx.o spi_oled.o
 	$(SZ) $(SZFLAGS) spi_oled.elf
 	
-spi_oled.o: spi_oled.c image.h petrol.h
+spi_oled.o: spi_oled.c image.h petrol.h P1030550_tiny.h
 	$(CC) -mcpu=$(MCU) $(CFLAGS) spi_oled.c
 
 system_stm32f4xx.o: $(SYSTEM)
@@ -69,6 +69,9 @@ image.h: image.pbm pbm2oled
 
 petrol.h: ../petrol.pbm pbm2oled
 	./pbm2oled ../petrol.pbm PetrolDigits >petrol.h
+
+P1030550_tiny.h: ../P1030550_tiny.ppm ../ppm2c.py
+	python ../ppm2c.py ../P1030550_tiny.ppm P1030550_tiny.h Copen64
 
 pbm2oled: ../pbm2oled.c
 	gcc -o pbm2oled ../pbm2oled.c
@@ -88,7 +91,7 @@ teststlink:
 
 # Target 'clean' will delete all object files, ELF files, and BIN files
 clean:
-	-rm -f $(OBJS) $(ELFS) $(BINS) startup_stm32f411xe.o system_stm32f4xx.o pbm2oled image.h petrol.h
+	-rm -f $(OBJS) $(ELFS) $(BINS) startup_stm32f411xe.o system_stm32f4xx.o pbm2oled image.h petrol.h P1030550_tiny.h
 
 .PHONY: clean
 
