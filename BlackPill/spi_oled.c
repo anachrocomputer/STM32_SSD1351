@@ -1570,7 +1570,7 @@ int main(void)
             case 'O':
                renderBitmap(0, 32, 128, 32, &OLEDImage[0][0], 128, SSD1351_BLUE, SSD1351_GREY25);
                renderBitmap(0, 64, 128, 32, &OLEDImage[0][0], 128, SSD1351_YELLOW, SSD1351_GREY50);
-               updscreen(32, 127);
+               updscreen(32, 95);
                break;
             case '\r':
                renderBitmap(0, 64, 128, DIGIT_HEIGHT, &PetrolDigits[0][0], DIGIT_STRIDE, SSD1351_GREEN, SSD1351_BLACK);
@@ -1578,6 +1578,16 @@ int main(void)
                break;
             case ']':
                sendImg(32, 64, 64, 64, &Copen64[0][0]);
+               break;
+            case '{':
+               for (hour = 0; hour < 32; hour++) {
+                  setHline( 0,  31, hour + 96, hour);
+                  setHline(32,  63, hour + 96, hour << 6);
+                  setHline(64,  95, hour + 96, hour << 11);
+                  setHline(96, 127, hour + 96, (hour << 11) | (hour << 6) | hour);
+               }
+               
+               updscreen(96, 127);
                break;
             case '.':
                drawSegDP(x, style, colour);
