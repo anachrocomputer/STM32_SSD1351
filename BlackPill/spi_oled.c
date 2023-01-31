@@ -395,36 +395,17 @@ static void __attribute__((optimize("O3"))) updscreen(const uint8_t y1, const ui
 }
 
 
-/* sendImg --- send an RGB565 image from a pixel array to the display */
+/* blitImg --- copy an RGB565 image from a pixel array to the framebuffer */
 
-static void __attribute__((optimize("O3"))) sendImg(const uint8_t x1, const uint8_t y1, const uint8_t wd, const uint8_t ht, const uint16_t *image)
+static void blitImg(const uint8_t x1, const uint8_t y1, const uint8_t wd, const uint8_t ht, const uint16_t *image)
 {
     int x, y;
-    volatile uint16_t __attribute__((unused)) junk;
+    const int x2 = x1 + wd - 1;
+    const int y2 = y1 + ht - 1;
     
-    oledCmd2b(SSD1351_SETCOLUMN, x1, x1 + wd - 1);
-    oledCmd2b(SSD1351_SETROW, y1, y1 + ht - 1);
-    
-    oledCmd(SSD1351_WRITERAM);
-    
-    SPI1->CR1 |= SPI_CR1_DFF;    // 16-bit mode for just a bit more speed
-    spi_cs(0);
-    
-    for (y = 0; y < ht; y++)
-        for (x = 0; x < wd; x++) {
-            SPI1->DR = *image++;
-   
-            while ((SPI1->SR & SPI_SR_TXE) == 0)
-               ;
-      
-            while ((SPI1->SR & SPI_SR_RXNE) == 0)
-               ;
-      
-            junk = SPI1->DR;
-        }
-     
-    spi_cs(1);
-    SPI1->CR1 &= ~SPI_CR1_DFF;    // Back to 8-bit mode
+    for (y = y1; y <= y2; y++)
+        for (x = x1; x <= x2; x++)
+            Frame[y][x] = *image++;
 }
 
 
@@ -1577,7 +1558,8 @@ int main(void)
                updscreen(64, 95);
                break;
             case ']':
-               sendImg(32, 64, 64, 64, &Copen64[0][0]);
+               blitImg(32, 64, 64, 64, &Copen64[0][0]);
+               updscreen(64, 127);
                break;
             case '{':
                for (hour = 0; hour < 32; hour++) {
