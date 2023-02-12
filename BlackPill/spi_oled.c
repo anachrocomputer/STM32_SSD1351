@@ -1098,6 +1098,19 @@ int _write(const int fd, const char *ptr, const int len)
 }
 
 
+/* analogRead --- read the ADC */
+
+uint16_t analogRead(void)
+{
+   ADC1->CR2 |= ADC_CR2_SWSTART;
+  
+   while ((ADC1->SR & ADC_SR_EOC) == 0)
+      ;
+  
+   return (ADC1->DR);
+}
+
+
 /* initMCU --- set up the microcontroller in general */
 
 static void initMCU(void)
@@ -1288,6 +1301,33 @@ static void initSPI(void)
 }
 
 
+/* initADC --- set up the ADC */
+
+static void initADC(void)
+{
+   // Configure Reset and Clock Control
+   RCC->APB2ENR |= RCC_APB2ENR_ADC1EN;                    // Enable clock to ADC peripheral on APB2 bus
+   RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;                   // Enable clock to GPIO A peripherals on AHB1 bus
+   
+   // Configure PA1, the GPIO pin with alternative function ADC1
+   GPIOA->MODER |= GPIO_MODER_MODER1_1 | GPIO_MODER_MODER1_0;    // PA1 in Analog mode
+   
+   ADC1->CR1 = 0x0;  // Default set-up: 12 bit
+   ADC1->CR2 = 0x0;
+   ADC1->SMPR1 = 0x0;
+   ADC1->SMPR2 = 0x0;
+   ADC1->SQR1 = 0x0;
+   ADC1->SQR2 = 0x0;
+   ADC1->SQR3 = 0x0;
+   
+   ADC1->CR2 |= ADC_CR2_ADON; // Enable ADC
+   
+   ADC1->SMPR2 |= 4 << ADC_SMPR2_SMP1_Pos;
+   
+   ADC1->SQR3 |= 0x1;   // Convert just channel 1
+}
+
+
 /* initMillisecondTimer --- set up a timer to interrupt every millisecond */
 
 static void initMillisecondTimer(void)
@@ -1303,6 +1343,7 @@ static void initMillisecondTimer(void)
 int main(void)
 {
    uint32_t end;
+   uint32_t frame;
    uint32_t colon;   // Time in milliSeconds at which to draw the colon separators
    uint8_t flag = 0;
    const int width = WD + 6;
@@ -1318,6 +1359,7 @@ int main(void)
    initGPIOs();
    initUARTs();
    initSPI();
+   initADC();
    initTimers();
    initMillisecondTimer();
    
@@ -1332,6 +1374,7 @@ int main(void)
    printf("\nHello from the STM%dF%d\n", 32, 411);
    
    end = millis() + 500u;
+   frame = millis() + 40u;
    colon = 0xffffffff;
    
    while (1) {
@@ -1349,6 +1392,15 @@ int main(void)
             flag = !flag;
             
             printf("millis() = %ld\n", millis());
+         }
+         
+         if (millis() >= frame) {
+            frame = millis() + 40u;
+            
+            const uint16_t ana = analogRead() / 32;
+            fillRect(0, 32, 127, 63, SSD1351_WHITE, SSD1351_BLACK);
+            fillRect(1, 33, ana, 62, SSD1351_BLUE, SSD1351_BLUE);
+            updscreen(32, 63);
          }
          
          if ((displayMode == AUTO_HMS_MODE) && (millis() >= colon)) {
@@ -1570,6 +1622,9 @@ int main(void)
                }
                
                updscreen(96, 127);
+               break;
+            case '/':
+               printf("analogRead = %d\n", analogRead());
                break;
             case '.':
                drawSegDP(x, style, colour);
