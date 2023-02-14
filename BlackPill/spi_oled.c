@@ -1100,8 +1100,10 @@ int _write(const int fd, const char *ptr, const int len)
 
 /* analogRead --- read the ADC */
 
-uint16_t analogRead(void)
+uint16_t analogRead(const int channel)
 {
+   ADC1->SQR3 = channel;
+   
    ADC1->CR2 |= ADC_CR2_SWSTART;
   
    while ((ADC1->SR & ADC_SR_EOC) == 0)
@@ -1312,6 +1314,9 @@ static void initADC(void)
    // Configure PA1, the GPIO pin with alternative function ADC1
    GPIOA->MODER |= GPIO_MODER_MODER1_1 | GPIO_MODER_MODER1_0;    // PA1 in Analog mode
    
+   // Configure PB0, the GPIO pin with alternative function ADC8
+   GPIOB->MODER |= GPIO_MODER_MODER0_1 | GPIO_MODER_MODER0_0;    // PB0 in Analog mode
+   
    ADC1->CR1 = 0x0;  // Default set-up: 12 bit
    ADC1->CR2 = 0x0;
    ADC1->SMPR1 = 0x0;
@@ -1323,6 +1328,7 @@ static void initADC(void)
    ADC1->CR2 |= ADC_CR2_ADON; // Enable ADC
    
    ADC1->SMPR2 |= 4 << ADC_SMPR2_SMP1_Pos;
+   ADC1->SMPR2 |= 4 << ADC_SMPR2_SMP8_Pos;
    
    ADC1->SQR3 |= 0x1;   // Convert just channel 1
 }
@@ -1397,9 +1403,11 @@ int main(void)
          if (millis() >= frame) {
             frame = millis() + 40u;
             
-            const uint16_t ana = analogRead() / 32;
+            const uint16_t ana1 = analogRead(1) / 32;
+            const uint16_t ana2 = analogRead(8) / 32;
             fillRect(0, 32, 127, 63, SSD1351_WHITE, SSD1351_BLACK);
-            fillRect(1, 33, ana, 62, SSD1351_BLUE, SSD1351_BLUE);
+            fillRect(1, 33, ana1, 47, SSD1351_BLUE, SSD1351_BLUE);
+            fillRect(1, 48, ana2, 62, SSD1351_BLUE, SSD1351_BLUE);
             updscreen(32, 63);
          }
          
@@ -1624,7 +1632,7 @@ int main(void)
                updscreen(96, 127);
                break;
             case '/':
-               printf("analogRead = %d\n", analogRead());
+               printf("analogRead = %d, %d\n", analogRead(1), analogRead(8));
                break;
             case '.':
                drawSegDP(x, style, colour);
