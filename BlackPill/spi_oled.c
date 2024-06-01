@@ -409,6 +409,39 @@ static void blitImg(const uint8_t x1, const uint8_t y1, const uint8_t wd, const 
 }
 
 
+/* videoWipe --- copy an RGB565 image into the framebuffer, slowly */
+
+void videoWipe(const int state, const int mode, const uint16_t *image)
+{
+   int x;
+   int y;
+   
+   switch (mode) {
+   case 0:
+      y = 64 - state;
+      image += y * 64;
+   
+      for (x = 32; x <= (32 + 64 - 1); x++)
+         Frame[y + 64][x] = *image++;
+      
+      break;
+   case 1:
+      x = 64 - state;
+      image += x;
+      
+      for (y = 0; y <= (64 - 1); y++) {
+         Frame[y + 64][x + 32] = *image;
+         image += 64;
+      }
+      
+      break;
+   case 2:  // LFSR
+      // 4096 states: 111000001000, 12, 11, 10, 4
+      break;
+   }
+}
+
+
 /* OLED_begin --- initialise the SSD1351 OLED */
 
 void OLED_begin(const int wd, const int ht)
@@ -1360,6 +1393,8 @@ int main(void)
    int displayMode = MANUAL_MODE;   // Initially operate the display manually
    int state = NOT_SETTING_TIME;
    int hour = 0, minute = 0, second = 0;
+   int wipeState = 0;
+   int wipeMode = 0;
    
    initMCU();
    initGPIOs();
@@ -1409,6 +1444,12 @@ int main(void)
             fillRect(1, 33, ana1, 47, SSD1351_BLUE, SSD1351_BLUE);
             fillRect(1, 48, ana2, 62, SSD1351_BLUE, SSD1351_BLUE);
             updscreen(32, 63);
+            
+            if (wipeState > 0) {
+               videoWipe(wipeState, wipeMode, &Copen64[0][0]);
+               updscreen(64, 127);
+               wipeState--;
+            }
          }
          
          if ((displayMode == AUTO_HMS_MODE) && (millis() >= colon)) {
@@ -1616,6 +1657,14 @@ int main(void)
             case '\r':
                renderBitmap(0, 64, 128, DIGIT_HEIGHT, &PetrolDigits[0][0], DIGIT_STRIDE, SSD1351_GREEN, SSD1351_BLACK);
                updscreen(64, 95);
+               break;
+            case '[':
+               wipeState = 64;
+               wipeMode = 0;
+               break;
+            case ',':
+               wipeState = 64;
+               wipeMode = 1;
                break;
             case ']':
                blitImg(32, 64, 64, 64, &Copen64[0][0]);
