@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include <ctype.h>
@@ -12,14 +13,6 @@
 // Size of 128x128 OLED screen
 #define MAXX 128
 #define MAXY 128
-
-#include "image.h"
-#include "petrol.h"
-#include "P1030550_tiny.h"
-
-#define DIGIT_WIDTH  (21)
-#define DIGIT_HEIGHT (32)
-#define DIGIT_STRIDE (210)
 
 // Co-ord of centre of screen
 #define CENX (MAXX / 2)
@@ -426,53 +419,6 @@ static void __attribute__((optimize("O3"))) updscreen(const uint8_t y1, const ui
 }
 
 
-/* blitImg --- copy an RGB565 image from a pixel array to the framebuffer */
-
-static void blitImg(const uint8_t x1, const uint8_t y1, const uint8_t wd, const uint8_t ht, const uint16_t *image)
-{
-    int x, y;
-    const int x2 = x1 + wd - 1;
-    const int y2 = y1 + ht - 1;
-    
-    for (y = y1; y <= y2; y++)
-        for (x = x1; x <= x2; x++)
-            Frame[y][x] = *image++;
-}
-
-
-/* videoWipe --- copy an RGB565 image into the framebuffer, slowly */
-
-void videoWipe(const int state, const int mode, const uint16_t *image)
-{
-   int x;
-   int y;
-   
-   switch (mode) {
-   case 0:
-      y = 64 - state;
-      image += y * 64;
-   
-      for (x = 32; x <= (32 + 64 - 1); x++)
-         Frame[y + 64][x] = *image++;
-      
-      break;
-   case 1:
-      x = 64 - state;
-      image += x;
-      
-      for (y = 0; y <= (64 - 1); y++) {
-         Frame[y + 64][x + 32] = *image;
-         image += 64;
-      }
-      
-      break;
-   case 2:  // LFSR
-      // 4096 states: 111000001000, 12, 11, 10, 4
-      break;
-   }
-}
-
-
 /* OLED_begin --- initialise the SSD1351 OLED */
 
 void OLED_begin(const int wd, const int ht)
@@ -506,34 +452,6 @@ void OLED_begin(const int wd, const int ht)
 }
 
 
-/* reCalculateBearings --- update array of target bearings from new player position */
-
-void reCalculateBearings(void)
-{
-   // We need to know the bearing from the player to each of the radar
-   // targets, so that we can rapidly update the display as the "beam" rotates.
-   // In this function, we update the array of bearings and ranges after the
-   // player position has changed. 'atan2' computes the arctangent, giving a
-   // bearing, without the risk of dividing by zero. The result is -180 to +180
-   // degrees, so we add 360 to any negative bearings. Range is worked out by
-   // Pythagoras' theorem.
-   int i;
-
-   for (i = 0; i < NTARGETS; i++) {
-      if (Target[i].active) {
-         const int dx = Target[i].x - Player.x;
-         const int dy = Target[i].y - Player.y;
-
-         Target[i].bearing = atan2(dy, dx) * RADTODEG;
-         Target[i].range = sqrt((dx * dx) + (dy * dy));
-
-         if (Target[i].bearing < 0.0)
-            Target[i].bearing += 360.0;
-      }
-   }
-}
-
-
 /* setPixel --- set a single pixel */
 
 void setPixel(const unsigned int x, const unsigned int y, const uint16_t c)
@@ -548,6 +466,134 @@ void setPixel(const unsigned int x, const unsigned int y, const uint16_t c)
 //      Serial.print(y);
 //      Serial.println(")");
     }
+}
+
+
+/* setText --- draw text into buffer using predefined font */
+
+void setText(int x, const int y, const char *str)
+{
+   // This function does not, as yet, allow for pixel row positioning of text.
+   // The Y co-ordinate is rounded to the nearest row of display RAM bytes.
+   // The font (475 bytes) is held in program memory (Flash) to reduce RAM
+   // usage. The AVR is a Harvard architecture machine and needs a special
+   // instruction to read program memory, which is implemented in C as the
+   // 'pgm_read_byte_near' function.
+// int row;
+   int i;
+   int d;
+
+// row = y >> 3;
+
+   for ( ; *str; str++) {
+      d = (*str - ' ') * 5;
+    
+      for (i = 0; i < 5; i++, d++) {
+//       Frame[row][x++] = pgm_read_byte_near (font_data + d);
+      }
+    
+//    Frame[row][x++] = 0;
+   }
+}
+
+
+/* setLine --- draw a line between any two absolute co-ords */
+
+void setLine(int x1, int y1, int x2, int y2, const int c)
+{
+   // Bresenham's line drawing algorithm. Originally coded on the IBM PC
+   // with EGA card in 1986.
+   int d;
+   int i1, i2;
+   int x, y;
+   int xend, yend;
+   int yinc, xinc;
+
+   const int dx = abs(x2 - x1);
+   const int dy = abs(y2 - y1);
+
+   if (((y1 > y2) && (dx < dy)) || ((x1 > x2) && (dx > dy))) {
+      int temp;
+      
+      temp = y1;
+      y1 = y2;
+      y2 = temp;
+
+      temp = x1;
+      x1 = x2;
+      x2 = temp;
+   }
+
+   if (dy > dx) {
+      d = (2 * dx) - dy;     /* Slope > 1 */
+      i1 = 2 * dx;
+      i2 = 2 * (dx - dy);
+
+      if (y1 > y2) {
+         x = x2;
+         y = y2;
+         yend = y1;
+      }
+      else {
+         x = x1;
+         y = y1;
+         yend = y2;
+      }
+
+      if (x1 > x2)
+         xinc = -1;
+      else
+         xinc = 1;
+
+      setPixel(x, y, c);
+
+      while (y < yend) {
+         y++;    
+         if (d < 0)
+            d += i1;
+         else {
+            x += xinc;
+            d += i2;
+         }
+
+         setPixel(x, y, c);
+      }
+   }
+   else {          
+      d = (2 * dy) - dx;  /* Slope < 1 */
+      i1 = 2 * dy;
+      i2 = 2 * (dy - dx);
+
+      if (x1 > x2) {
+         x = x2;
+         y = y2;
+         xend = x1;
+      }
+      else {
+         x = x1;
+         y = y1;
+         xend = x2;
+      }
+
+      if (y1 > y2)
+         yinc = -1;
+      else
+         yinc = 1;
+
+      setPixel(x, y, c);
+
+      while (x < xend) {
+         x++;
+         if (d < 0)
+            d += i1;
+         else {
+            y += yinc;
+            d += i2;
+         }
+
+         setPixel(x, y, c);
+      }
+   }
 }
 
 
@@ -588,27 +634,27 @@ static void cfill(const int x0, const int y0, const int x, const int y, const in
 
 static void cpts4(const int x0, const int y0, const int x, const int y, const int c)
 {
-   setPixel (x0 + x, y0 + y, c);
+   setPixel(x0 + x, y0 + y, c);
 
 //  if (x != 0)
-   setPixel (x0 - x, y0 + y, c);
+   setPixel(x0 - x, y0 + y, c);
 
 //  if (y != 0)  
-   setPixel (x0 + x, y0 - y, c);
+   setPixel(x0 + x, y0 - y, c);
 
 //  if ((x != 0) && (y != 0))
-   setPixel (x0 - x, y0 - y, c);
+   setPixel(x0 - x, y0 - y, c);
 }
 
 
 /* cpts8 --- draw eight pixels to form the edge of a circle */
 
-static void cpts8(const int x0, const int y0, const int x, const int y, const int ec)
+static void cpts8(const int x0, const int y0, const int x, const int y, const int c)
 {
-  cpts4 (x0, y0, x, y, ec);
+  cpts4 (x0, y0, x, y, c);
 
 // if (x != y)
-    cpts4 (x0, y0, y, x, ec);
+    cpts4 (x0, y0, y, x, c);
 }
 
 
@@ -627,27 +673,27 @@ static void splitcfill(const int x0, const int y0, const int x1, const int y1, c
 
 static void splitcpts4(const int x0, const int y0, const int x1, const int y1, const int x, const int y, const int c)
 {
-   setPixel (x1 + x, y1 + y, c);
+   setPixel(x1 + x, y1 + y, c);
 
 //  if (x != 0)
-   setPixel (x0 - x, y1 + y, c);
+   setPixel(x0 - x, y1 + y, c);
 
 //  if (y != 0)  
-   setPixel (x1 + x, y0 - y, c);
+   setPixel(x1 + x, y0 - y, c);
 
 //  if ((x != 0) && (y != 0))
-   setPixel (x0 - x, y0 - y, c);
+   setPixel(x0 - x, y0 - y, c);
 }
 
 
 /* splitcpts8 --- draw eight pixels to form the edge of a split circle */
 
-static void splitcpts8(const int x0, const int y0, const int x1, const int y1, const int x, const int y, const int ec)
+static void splitcpts8(const int x0, const int y0, const int x1, const int y1, const int x, const int y, const int c)
 {
-   splitcpts4(x0, y0, x1, y1, x, y, ec);
+   splitcpts4(x0, y0, x1, y1, x, y, c);
 
 // if (x != y)
-      splitcpts4(x0, y0, x1, y1, y, x, ec);
+      splitcpts4(x0, y0, x1, y1, y, x, c);
 }
 
 
@@ -753,37 +799,21 @@ void drawSplitCircle(const int x0, const int y0, const int x1, const int y1, con
 }
 
 
-/* drawRoundRect --- draw a rounded rectangle */
-
-void drawRoundRect(const int x0, const int y0, const int x1, const int y1, const int r)
-{
-   const int c = 0;
-   
-   setHline(x0 + r, x1 - r, y0, c);
-   setHline(x0 + r, x1 - r, y1, c);
-   setVline(x0, y0 + r, y1 - r, c);
-   setVline(x1, y0 + r, y1 - r, c);
-
-   drawSplitCircle(x0 + r, y0 + r, x1 - r, y1 - r, r, 1, -1);
-}
-
-
 /* fillRoundRect --- fill a rounded rectangle */
 
-void fillRoundRect(const int x0, const int y0, const int x1, const int y1, const int r)
+void fillRoundRect(const int x0, const int y0, const int x1, const int y1, const int r, const uint16_t ec, const uint16_t fc)
 {
    int y;
-   const int c = 0;
 
-   drawSplitCircle(x0 + r, y0 + r, x1 - r, y1 - r, r, 1, 0);
+   drawSplitCircle(x0 + r, y0 + r, x1 - r, y1 - r, r, ec, fc);
 
-   setHline(x0 + r, x1 - r, y0, c);
-   setHline(x0 + r, x1 - r, y1, c);
-   setVline(x0, y0 + r, y1 - r, c);
-   setVline(x1, y0 + r, y1 - r, c);
+   setHline(x0 + r, x1 - r, y0, ec);
+   setHline(x0 + r, x1 - r, y1, ec);
+   setVline(x0, y0 + r, y1 - r, ec);
+   setVline(x1, y0 + r, y1 - r, ec);
 
    for (y = y0 + r; y < (y1 - r); y++)
-      clrHline (x0 + 1, x1 - 1, y, c);
+      setHline (x0 + 1, x1 - 1, y, fc);
 }
 
 
@@ -868,26 +898,32 @@ void drawBackground(void)
    // Checkerboard background
    for (y = 0; y < MAXY; y++) {
       for (x = 0; x < MAXX; x += 2) {
-         setPixel(x, y, 0x55);
-         setPixel(x + 1, y, 0xaa);
+         if (y & 1) {
+            setPixel(x, y, SSD1351_WHITE);
+            setPixel(x + 1, y, SSD1351_BLACK);
+         }
+         else {
+            setPixel(x, y, SSD1351_BLACK);
+            setPixel(x + 1, y, SSD1351_WHITE);
+         }  
       }
    }
 
    // Four cases where the edge of the playing area is visible
    if (Player.x < CENX) {
-      fillRect(0, 0, CENX - Player.x, MAXY - 1, 0, 0);
+      fillRect(0, 0, CENX - Player.x, MAXY - 1, SSD1351_BLACK, SSD1351_BLACK);
    }
 
    if (Player.y < CENY) {
-      fillRect(0, 0, MAXX - 1, CENY - Player.y, 0, 0);
+      fillRect(0, 0, MAXX - 1, CENY - Player.y, SSD1351_BLACK, SSD1351_BLACK);
    }
 
    if ((MAXPLAYX - Player.x) < CENX) {
-      fillRect((MAXPLAYX - Player.x) + CENX, 0, MAXX - 1, MAXY - 1, 0, 0);
+      fillRect((MAXPLAYX - Player.x) + CENX, 0, MAXX - 1, MAXY - 1, SSD1351_BLACK, SSD1351_BLACK);
    }
 
    if ((MAXPLAYY - Player.y) < CENY) {
-      fillRect(0, (MAXPLAYY - Player.y) + CENY, MAXX - 1, MAXY - 1, 0, 0);
+      fillRect(0, (MAXPLAYY - Player.y) + CENY, MAXX - 1, MAXY - 1, SSD1351_BLACK, SSD1351_BLACK);
    }
 }
 
@@ -900,7 +936,7 @@ void drawRadarScreen(const bool rings, const bool axes)
 
   // 1108us
 //  before = micros ();
-   circle (CENX, CENY, 33, 1, 0);
+   circle (CENX, CENY, 33, SSD1351_WHITE, SSD1351_BLACK);
 //  after = micros ();
   
 //  Serial.print (after - before);
@@ -908,14 +944,14 @@ void drawRadarScreen(const bool rings, const bool axes)
    
    // Range rings
    if (rings) {
-      circle(CENX, CENY, 11, 1, -1);
-      circle(CENX, CENY, 22, 1, -1);
+      circle(CENX, CENY, 11, SSD1351_GREEN, -1);
+      circle(CENX, CENY, 22, SSD1351_GREEN, -1);
    }
   
    // Cardinal directions
    if (axes) {
-      setVline(CENX, 0, MAXY, 0);
-      setHline(CENX - 33, CENX + 33, CENY, 0);
+      setVline(CENX, 0, MAXY, SSD1351_WHITE);
+      setHline(CENX - 33, CENX + 33, CENY, SSD1351_WHITE);
    }
 }
 
@@ -925,17 +961,16 @@ void drawRadarScreen(const bool rings, const bool axes)
 void drawGatheredTargets(void)
 {
    int t;
-   const int c = 0;
    
    for (t = 0; t < NTARGETS; t++) {
       if (Target[t].active == false) {
-         circle(6, Target[t].y, Target[t].siz, 1, 1);
+         circle(6, Target[t].y, Target[t].siz, SSD1351_WHITE, 1);
 
       if (Target[t].rings)
-         circle(12, Target[t].y, 2, 1, -1);
+         circle(12, Target[t].y, 2, SSD1351_WHITE, -1);
 
       if (Target[t].axes)
-         setPixel(12, Target[t].y, c);
+         setPixel(12, Target[t].y, SSD1351_WHITE);
       }
    }
 }
@@ -952,11 +987,11 @@ void drawTimer(void)
   
    for (y = 1; y <= GameDuration; y++)
       if (y < Sweeps)
-         setHline(MAXX - 9, MAXX - 2, y + TIMERY, 0);
+         setHline(MAXX - 9, MAXX - 2, y + TIMERY, SSD1351_BLACK);
       else
-         clrHline(MAXX - 9, MAXX - 2, y + TIMERY, 0);
+         setHline(MAXX - 9, MAXX - 2, y + TIMERY, SSD1351_WHITE);
   
-   setHline(MAXX - 9, MAXX - 2, GameDuration + TIMERY, 0);
+   setHline(MAXX - 9, MAXX - 2, GameDuration + TIMERY, SSD1351_WHITE);
 }
 
 
@@ -977,18 +1012,62 @@ void drawRadarVector(const int r)
    y = (33.0 * sin ((double)r / RADTODEG)) + 0.49;
 
    // 232us
-   setLine(MAXX / 2, MAXY / 2, (MAXX / 2) + x, (MAXY / 2) + y);
+   setLine(MAXX / 2, MAXY / 2, (MAXX / 2) + x, (MAXY / 2) + y, SSD1351_GREEN);
 
    x = (33.0 * cos ((double)(r + 2) / RADTODEG)) + 0.49;
    y = (33.0 * sin ((double)(r + 2) / RADTODEG)) + 0.49;
 
    // 232us
-   setLine(MAXX / 2, MAXY / 2, (MAXX / 2) + x, (MAXY / 2) + y);
+   setLine(MAXX / 2, MAXY / 2, (MAXX / 2) + x, (MAXY / 2) + y, SSD1351_GREEN);
 
    x = (33.0 * cos ((double)(r + 4) / RADTODEG)) + 0.49;
    y = (33.0 * sin ((double)(r + 4) / RADTODEG)) + 0.49;
 
-   setLine(MAXX / 2, MAXY / 2, (MAXX / 2) + x, (MAXY / 2) + y);
+   setLine(MAXX / 2, MAXY / 2, (MAXX / 2) + x, (MAXY / 2) + y, SSD1351_GREEN);
+}
+
+
+/* reCalculateBearings --- update array of target bearings from new player position */
+
+void reCalculateBearings(void)
+{
+   // We need to know the bearing from the player to each of the radar
+   // targets, so that we can rapidly update the display as the "beam" rotates.
+   // In this function, we update the array of bearings and ranges after the
+   // player position has changed. 'atan2' computes the arctangent, giving a
+   // bearing, without the risk of dividing by zero. The result is -180 to +180
+   // degrees, so we add 360 to any negative bearings. Range is worked out by
+   // Pythagoras' theorem.
+   int i;
+
+   for (i = 0; i < NTARGETS; i++) {
+      if (Target[i].active) {
+         const int dx = Target[i].x - Player.x;
+         const int dy = Target[i].y - Player.y;
+
+         Target[i].bearing = atan2(dy, dx) * RADTODEG;
+         Target[i].range = sqrt((dx * dx) + (dy * dy));
+
+         if (Target[i].bearing < 0.0)
+            Target[i].bearing += 360.0;
+      }
+   }
+}
+
+
+/* findEchoSlot --- search the Echo array for an unused slot */
+
+int findEchoSlot(void)
+{
+   int e;
+   
+   for (e = 0; e < NECHOES; e++) {
+      if (Echo[e].age <= 0)
+         return (e);
+   }
+   
+   // We didn't find an empty slot, so overwrite slot 0  
+   return (0);
 }
 
 
@@ -1039,22 +1118,6 @@ void findNewEchoes(const int r, const int nt)
          }
       }
    }
-}
-
-
-/* findEchoSlot --- search the Echo array for an unused slot */
-
-int findEchoSlot(void)
-{
-   int e;
-   
-   for (e = 0; e < NECHOES; e++) {
-      if (Echo[e].age <= 0)
-         return (e);
-   }
-   
-   // We didn't find an empty slot, so overwrite slot 0  
-   return (0);
 }
 
 
@@ -1139,516 +1202,83 @@ void movePlayer(const int dir)
 }
 
 
-#define  WD  (15)    // Width of digit (X-coord of rightmost pixel of segments 'b' and 'c')
-#define  GY  (13)    // Y-coord of 'g' segment of Panaplex (slightly above half-way)
-
-void drawLed(const int x0, int x, int y, const uint16_t c)
+void delay(const int milliSeconds)
 {
-   x *= 4;
-   y *= 4;
+   const int end = millis() + milliSeconds;
    
-   x += x0;
-   y += 3;
-   
-   setHline(x, x + 2, y + 0, c);
-   setHline(x, x + 2, y + 1, c);
-   setHline(x, x + 2, y + 2, c);
+   while (millis() < end)
+      ;
 }
 
 
-void drawSegA(const int x, const int style, const uint16_t c)
+void loop(void)
 {
-   switch (style) {
-   case PANAPLEX_STYLE:
-      setHline(x, x + WD, 0, c);
-      setHline(x, x + WD, 1, c);
-      break;
-   case LED_DOT_STYLE:
-      drawLed(x, 1, 0, c);
-      drawLed(x, 2, 0, c);
-      break;
-   case LED_BAR_STYLE:
-      setHline(x + 3, x + WD - 3, 0, c);
-      setHline(x + 3, x + WD - 3, 1, c);
-      setHline(x + 3, x + WD - 3, 2, c);
-      break;
-   case VFD_STYLE:
-      setHline(x + 1, x + WD - 1, 0, c);
-      setHline(x + 2, x + WD - 2, 1, c);
-      setHline(x + 3, x + WD - 3, 2, c);
-      break;
-   }
-}
+   int r;
+   int dir;
+   int e;
+   long int start, now;
+   int elapsed;
 
+   for (r = 0; r < 360; r += 3) {
+      // Record timer in milliseconds at start of frame cycle
+      start = millis();
 
-void drawSegB(const int x, const int style, const uint16_t c)
-{
-   switch (style) {
-   case PANAPLEX_STYLE:
-      setVline(x + WD,     0, GY, c);
-      setVline(x + WD - 1, 0, GY, c);
-      break;
-   case LED_DOT_STYLE:
-      drawLed(x, 3, 1, c);
-      drawLed(x, 3, 2, c);
-      break;
-   case LED_BAR_STYLE:
-      setVline(x + WD,     3, 14, c);
-      setVline(x + WD - 1, 3, 14, c);
-      setVline(x + WD - 2, 3, 14, c);
-      break;
-   case VFD_STYLE:
-      setVline(x + WD,     1, 13, c);
-      setVline(x + WD - 1, 2, 14, c);
-      setVline(x + WD - 2, 3, 13, c);
-      break;
-   }
-}
+      // Draw empty radar scope
+      drawBackground();
 
+      drawRadarScreen(Rings, Axes);
 
-void drawSegC(const int x, const int style, const uint16_t c)
-{
-   switch (style) {
-   case PANAPLEX_STYLE:
-      setVline(x + WD,     GY, 31, c);
-      setVline(x + WD - 1, GY, 31, c);
-      break;
-   case LED_DOT_STYLE:
-      drawLed(x, 3, 4, c);
-      drawLed(x, 3, 5, c);
-      break;
-   case LED_BAR_STYLE:
-      setVline(x + WD,     18, 28, c);
-      setVline(x + WD - 1, 18, 28, c);
-      setVline(x + WD - 2, 18, 28, c);
-      break;
-   case VFD_STYLE:
-      setVline(x + WD,     19, 30, c);
-      setVline(x + WD - 1, 18, 29, c);
-      setVline(x + WD - 2, 19, 28, c);
-      break;
-   }
-}
+      drawGatheredTargets();
 
+      if (Sweeps < GameDuration) {
+         dir = getPlayerMove();
 
-void drawSegD(const int x, const int style, const uint16_t c)
-{
-   switch (style) {
-   case PANAPLEX_STYLE:
-      setHline(x, x + WD, 31, c);
-      setHline(x, x + WD, 30, c);
-      break;
-   case LED_DOT_STYLE:
-      drawLed(x, 1, 6, c);
-      drawLed(x, 2, 6, c);
-      break;
-   case LED_BAR_STYLE:
-      setHline(x + 3, x + WD - 3, 31, c);
-      setHline(x + 3, x + WD - 3, 30, c);
-      setHline(x + 3, x + WD - 3, 29, c);
-      break;
-   case VFD_STYLE:
-      setHline(x + 1, x + WD - 1, 31, c);
-      setHline(x + 2, x + WD - 2, 30, c);
-      setHline(x + 3, x + WD - 3, 29, c);
-      break;
-   }
-}
-
-
-void drawSegE(const int x, const int style, const uint16_t c)
-{
-   switch (style) {
-   case PANAPLEX_STYLE:
-      setVline(x + 0, GY, 31, c);
-      setVline(x + 1, GY, 31, c);
-      break;
-   case LED_DOT_STYLE:
-      drawLed(x, 0, 4, c);
-      drawLed(x, 0, 5, c);
-      break;
-   case LED_BAR_STYLE:
-      setVline(x + 0, 18, 28, c);
-      setVline(x + 1, 18, 28, c);
-      setVline(x + 2, 18, 28, c);
-      break;
-   case VFD_STYLE:
-      setVline(x + 0, 17, 30, c);
-      setVline(x + 1, 18, 29, c);
-      setVline(x + 2, 19, 28, c);
-      break;
-   }
-}
-
-
-void drawSegF(const int x, const int style, const uint16_t c)
-{
-   switch (style) {
-   case PANAPLEX_STYLE:
-      setVline(x + 0, 0, GY, c);
-      setVline(x + 1, 0, GY, c);
-      break;
-   case LED_DOT_STYLE:
-      drawLed(x, 0, 1, c);
-      drawLed(x, 0, 2, c);
-      break;
-   case LED_BAR_STYLE:
-      setVline(x + 0, 3, 14, c);
-      setVline(x + 1, 3, 14, c);
-      setVline(x + 2, 3, 14, c);
-      break;
-   case VFD_STYLE:
-      setVline(x + 0, 1, 15, c);
-      setVline(x + 1, 2, 14, c);
-      setVline(x + 2, 3, 13, c);
-      break;
-   }
-}
-
-
-void drawSegG(const int x, const int style, const uint16_t c)
-{
-   switch (style) {
-   case PANAPLEX_STYLE:
-      setHline(x, x + WD, GY, c);
-      setHline(x, x + WD, GY + 1, c);
-      break;
-   case LED_DOT_STYLE:
-      drawLed(x, 1, 3, c);
-      drawLed(x, 2, 3, c);
-      break;
-   case LED_BAR_STYLE:
-      setHline(x + 3, x + WD - 3, 15, c);
-      setHline(x + 3, x + WD - 3, 16, c);
-      setHline(x + 3, x + WD - 3, 17, c);
-      break;
-   case VFD_STYLE:
-      setHline(x + 2, x + WD - 2, 15, c);
-      setHline(x + 1, x + WD - 1, 16, c);
-      setHline(x + 2, x + WD - 2, 17, c);
-      break;
-   }
-}
-
-
-void drawSegH(const int x, const int style, const uint16_t c)
-{
-   switch (style) {
-   case PANAPLEX_STYLE:
-      setHline(x + WD, x + WD + 3, GY, c);
-      setHline(x + WD, x + WD + 3, GY + 1, c);
-      break;
-   case LED_DOT_STYLE:
-      drawLed(x, 4, 3, c);
-      break;
-   case LED_BAR_STYLE:
-      setHline(x + WD + 1, x + WD + 3, 15, c);
-      setHline(x + WD + 1, x + WD + 3, 16, c);
-      setHline(x + WD + 1, x + WD + 3, 17, c);
-      break;
-   case VFD_STYLE:
-      setHline(x + WD,     x + WD + 3, 15, c);
-      setHline(x + WD - 1, x + WD + 3, 16, c);
-      setHline(x + WD,     x + WD + 3, 17, c);
-      break;
-   }
-}
-
-
-void drawSegI(const int x, const int style, const uint16_t c)
-{
-   switch (style) {
-   case LED_DOT_STYLE:
-      drawLed(x, 0, 0, c);
-      break;
-   }
-}
-
-
-void drawSegJ(const int x, const int style, const uint16_t c)
-{
-   switch (style) {
-   case LED_DOT_STYLE:
-      drawLed(x, 3, 0, c);
-      break;
-   }
-}
-
-
-void drawSegK(const int x, const int style, const uint16_t c)
-{
-   switch (style) {
-   case LED_DOT_STYLE:
-      drawLed(x, 3, 3, c);
-      break;
-   }
-}
-
-
-void drawSegL(const int x, const int style, const uint16_t c)
-{
-   switch (style) {
-   case LED_DOT_STYLE:
-      drawLed(x, 3, 6, c);
-      break;
-   }
-}
-
-
-void drawSegM(const int x, const int style, const uint16_t c)
-{
-   switch (style) {
-   case LED_DOT_STYLE:
-      drawLed(x, 0, 6, c);
-      break;
-   }
-}
-
-
-void drawSegN(const int x, const int style, const uint16_t c)
-{
-   switch (style) {
-   case LED_DOT_STYLE:
-      drawLed(x, 0, 3, c);
-      break;
-   }
-}
-
-
-void drawSegDP(const int x, const int style, const uint16_t c)
-{
-   switch (style) {
-   case PANAPLEX_STYLE:
-      setHline(x + WD + 2, x + WD + 4, 29, c);
-      setHline(x + WD + 2, x + WD + 4, 30, c);
-      setHline(x + WD + 2, x + WD + 4, 31, c);
-      break;
-   case LED_DOT_STYLE:
-      drawLed(x, 4, 6, c);
-      break;
-   case LED_BAR_STYLE:
-   case PETROL_STATION_STYLE:
-   case VFD_STYLE:
-      setHline(x + WD + 2, x + WD + 4, 29, c);
-      setHline(x + WD + 2, x + WD + 4, 30, c);
-      setHline(x + WD + 2, x + WD + 4, 31, c);
-      break;
-   }
-}
-
-
-void drawSegCN(const int x, const int style, const uint16_t c)
-{
-   switch (style) {
-   case PANAPLEX_STYLE:
-      setHline(x + WD + 2, x + WD + 3,  9, c);
-      setHline(x + WD + 2, x + WD + 3, 10, c);
-      setHline(x + WD + 2, x + WD + 3, 17, c);
-      setHline(x + WD + 2, x + WD + 3, 18, c);
-      break;
-   case LED_DOT_STYLE:
-      drawLed(x, 4, 2, c);
-      drawLed(x, 4, 4, c);
-      break;
-   case LED_BAR_STYLE:
-   case PETROL_STATION_STYLE:
-   case VFD_STYLE:
-      setHline(x + WD + 2, x + WD + 4, 11, c);
-      setHline(x + WD + 2, x + WD + 4, 12, c);
-      setHline(x + WD + 2, x + WD + 4, 13, c);
-      setHline(x + WD + 2, x + WD + 4, 19, c);
-      setHline(x + WD + 2, x + WD + 4, 20, c);
-      setHline(x + WD + 2, x + WD + 4, 21, c);
-      break;
-   }
-}
-
-
-/* renderHexDigit --- draw a single digit into the frame buffer in a given style */
-
-void renderHexDigit(const int x, const int digit, const int style, const uint16_t c)
-{
-   if (style == PETROL_STATION_STYLE) {
-      renderBitmap(x, 0, DIGIT_WIDTH, DIGIT_HEIGHT, &PetrolDigits[0][digit * DIGIT_WIDTH], DIGIT_STRIDE, c, SSD1351_BLACK);
-   }
-   else {
-      switch (digit) {
-      case 0:
-         drawSegA(x, style, c);
-         drawSegB(x, style, c);
-         drawSegC(x, style, c);
-         drawSegD(x, style, c);
-         drawSegE(x, style, c);
-         drawSegF(x, style, c);
-         drawSegK(x, style, c);
-         drawSegN(x, style, c);
-         break;
-      case 1:
-         drawSegB(x, style, c);
-         drawSegC(x, style, c);
-         drawSegJ(x, style, c);
-         drawSegK(x, style, c);
-         drawSegL(x, style, c);
-         break;
-      case 2:
-         drawSegA(x, style, c);
-         drawSegB(x, style, c);
-         drawSegD(x, style, c);
-         drawSegE(x, style, c);
-         drawSegG(x, style, c);
-         drawSegI(x, style, c);
-         drawSegL(x, style, c);
-         drawSegM(x, style, c);
-         break;
-      case 3:
-         drawSegA(x, style, c);
-         drawSegB(x, style, c);
-         drawSegC(x, style, c);
-         drawSegD(x, style, c);
-         drawSegG(x, style, c);
-         drawSegI(x, style, c);
-         drawSegM(x, style, c);
-         break;
-      case 4:
-         drawSegB(x, style, c);
-         drawSegC(x, style, c);
-         drawSegF(x, style, c);
-         drawSegG(x, style, c);
-         drawSegH(x, style, c);  // Special segment just for 4
-         drawSegI(x, style, c);
-         drawSegJ(x, style, c);
-         drawSegK(x, style, c);
-         drawSegL(x, style, c);
-         break;
-      case 5:
-         drawSegA(x, style, c);
-         drawSegC(x, style, c);
-         drawSegD(x, style, c);
-         drawSegF(x, style, c);
-         drawSegG(x, style, c);
-         drawSegI(x, style, c);
-         drawSegJ(x, style, c);
-         drawSegM(x, style, c);
-         break;
-      case 6:
-         drawSegA(x, style, c);
-         drawSegC(x, style, c);
-         drawSegD(x, style, c);
-         drawSegE(x, style, c);
-         drawSegF(x, style, c);
-         drawSegG(x, style, c);
-         drawSegJ(x, style, c);
-         drawSegN(x, style, c);
-         break;
-      case 7:
-         drawSegA(x, style, c);
-         drawSegB(x, style, c);
-         drawSegC(x, style, c);
-         drawSegF(x, style, c);  // Hooked 7
-         drawSegI(x, style, c);
-         drawSegJ(x, style, c);
-         drawSegK(x, style, c);
-         drawSegL(x, style, c);
-         break;
-      case 8:
-         drawSegA(x, style, c);
-         drawSegB(x, style, c);
-         drawSegC(x, style, c);
-         drawSegD(x, style, c);
-         drawSegE(x, style, c);
-         drawSegF(x, style, c);
-         drawSegG(x, style, c);
-         break;
-      case 9:
-         drawSegA(x, style, c);
-         drawSegB(x, style, c);
-         drawSegC(x, style, c);
-         drawSegD(x, style, c);
-         drawSegF(x, style, c);
-         drawSegG(x, style, c);
-         drawSegK(x, style, c);
-         drawSegM(x, style, c);
-         break;
-      case 0xA:
-         drawSegA(x, style, c);
-         drawSegB(x, style, c);
-         drawSegC(x, style, c);
-         drawSegE(x, style, c);
-         drawSegF(x, style, c);
-         drawSegG(x, style, c);
-         drawSegK(x, style, c);
-         drawSegL(x, style, c);
-         drawSegM(x, style, c);
-         drawSegN(x, style, c);
-         break;
-      case 0xB:
-         drawSegC(x, style, c);     // Lowercase 'b'
-         drawSegD(x, style, c);
-         drawSegE(x, style, c);
-         drawSegF(x, style, c);
-         drawSegG(x, style, c);
-         if (style == LED_DOT_STYLE) {
-            drawSegA(x, style, c);  // Uppercase 'B'
-            drawSegB(x, style, c);
-            drawSegI(x, style, c);
-            drawSegM(x, style, c);
-            drawSegN(x, style, c);
+         if (dir != 0) {
+            movePlayer(dir);
+            reCalculateBearings();
          }
-         break;
-      case 0xC:
-         drawSegA(x, style, c);
-         drawSegD(x, style, c);
-         drawSegE(x, style, c);
-         drawSegF(x, style, c);
-         drawSegJ(x, style, c);
-         drawSegL(x, style, c);
-         drawSegN(x, style, c);
-         break;
-      case 0xD:
-         if (style == LED_DOT_STYLE) {
-            drawSegA(x, style, c);  // Uppercase 'D'
-            drawSegB(x, style, c);
-            drawSegC(x, style, c);
-            drawSegD(x, style, c);
-            drawSegE(x, style, c);
-            drawSegF(x, style, c);
-            drawSegI(x, style, c);
-            drawSegK(x, style, c);
-            drawSegM(x, style, c);
-            drawSegN(x, style, c);
-         }
-         else {
-            drawSegB(x, style, c);  // Lowercase 'd'
-            drawSegC(x, style, c);
-            drawSegD(x, style, c);
-            drawSegE(x, style, c);
-            drawSegG(x, style, c);
-         }
-         break;
-      case 0xE:
-         drawSegA(x, style, c);
-         drawSegD(x, style, c);
-         drawSegE(x, style, c);
-         drawSegF(x, style, c);
-         drawSegG(x, style, c);
-         drawSegI(x, style, c);
-         drawSegJ(x, style, c);
-         drawSegL(x, style, c);
-         drawSegM(x, style, c);
-         drawSegN(x, style, c);
-         break;
-      case 0xF:
-         drawSegA(x, style, c);
-         drawSegE(x, style, c);
-         drawSegF(x, style, c);
-         drawSegG(x, style, c);
-         drawSegI(x, style, c);
-         drawSegJ(x, style, c);
-         drawSegM(x, style, c);
-         drawSegN(x, style, c);
-         break;
       }
+    
+      // Draw current scan vector
+      drawRadarVector(r);
+
+      // Do we have any new echoes for this scanner bearing?
+      findNewEchoes(r, NTARGETS);
+
+      // Add un-faded echoes
+      for (e = 0; e < NECHOES; e++) {
+         if (Echo[e].age > 0)
+            circle(Echo[e].x, Echo[e].y, Echo[e].rad, SSD1351_WHITE, SSD1351_WHITE);
+
+         Echo[e].age--;
+      }
+    
+      if (r == 180)
+         Sweeps++;
+      
+      if (Sweeps < GameDuration) {
+         drawTimer();
+      }
+      else {
+         fillRoundRect(CENX - (3 * 9) - 2, CENY - 8, CENX + (3 * 9) + 2, CENY + 12, 7, SSD1351_WHITE, SSD1351_BLACK);
+         setText(CENX - (3 * 9), CENY, "GAME OVER");
+      }
+      
+      // Update LCD for this frame
+      updscreen(0, MAXY - 1);
+      
+      // Work out timing for this frame
+      now = millis();
+      elapsed = now - start;
+    
+//    Serial.print(elapsed);
+//    Serial.println("ms.");
+    
+      if (elapsed < 40)
+         delay(40 - elapsed);
    }
+
+   Sweeps++;
 }
 
 
@@ -1681,6 +1311,12 @@ uint16_t analogRead(const int channel)
       ;
   
    return (ADC1->DR);
+}
+
+
+int random(const int low, const int high)
+{
+   return ((low + high) / 2);
 }
 
 
@@ -1922,11 +1558,6 @@ int main(void)
    uint32_t end;
    uint32_t frame;
    uint8_t flag = 0;
-   const int width = WD + 6;
-   int digit = 0;
-   int x = digit * width;
-   int style = VFD_STYLE;           // Initially draw digits in Vacuum Fluorescent Display style
-   uint16_t colour = VFD_COLOUR;    // Initially draw in cyan
    int i;
    
    initMCU();
@@ -1949,9 +1580,7 @@ int main(void)
    printf("RisibleRadar\n");
    printf("John Honniball, June 2024\n");
    printf("Ludum Dare MiniLD #34: Aspect\n");
-  
-   circle (CENX, CENY, 33, 1, 0);
-  
+   
    // Targets scattered on playfield at random
    for (i = 0; i < NTARGETS; i++) {
       do {
@@ -1992,10 +1621,10 @@ int main(void)
 
    drawRadarScreen(true, true);
 
-   fillRoundRect(CENX - (3 * 13) - 2, CENY - 8, CENX + (3 * 13) + 2, CENY + 12, 7);
+   fillRoundRect(CENX - (3 * 13) - 2, CENY - 8, CENX + (3 * 13) + 2, CENY + 12, 7, SSD1351_WHITE, SSD1351_BLACK);
    setText(CENX - (3 * 13), CENY, "Risible Radar");
 
-   updscreen(0, 127);
+   updscreen(0, MAXY - 1);
 
    delay(2000);
 
@@ -2003,13 +1632,16 @@ int main(void)
 
    drawRadarScreen(true, true);
 
-   fillRoundRect(CENX - (3 * 5) - 2, CENY - 8, CENX + (3 * 5) + 2, CENY + 12, 7);
+   fillRoundRect(CENX - (3 * 5) - 2, CENY - 8, CENX + (3 * 5) + 2, CENY + 12, 7, SSD1351_WHITE, SSD1351_BLACK);
    setText(CENX - (3 * 5), CENY, "READY");
 
-   updscreen(0, 127);
+   updscreen(0, MAXY - 1);
    
    end = millis() + 500u;
    frame = millis() + 40u;
+   
+   while (1)
+      loop();
    
    while (1) {
       if (Tick) {
@@ -2067,135 +1699,8 @@ int main(void)
             setHline(0, MAXX - 1, (MAXY * 3) / 4, SSD1351_WHITE);
             updscreen(0, MAXY - 1);
             break;
-         case 'g':
-            digit = 0;
-            x = digit * width;
-            break;
-         case 'h':
-            digit = 1;
-            x = digit * width;
-            break;
-         case 'i':
-            digit = 2;
-            x = digit * width;
-            break;
-         case 'j':
-            digit = 3;
-            x = digit * width;
-            break;
-         case 'k':
-            digit = 4;
-            x = digit * width;
-            break;
-         case 'l':
-            digit = 5;
-            x = digit * width;
-            break;
-         case '0':
-            renderHexDigit(x, 0, style, colour);
-            updscreen(0, 31);
-            break;
-         case '1':
-            renderHexDigit(x, 1, style, colour);
-            updscreen(0, 31);
-            break;
-         case '2':
-            renderHexDigit(x, 2, style, colour);
-            updscreen(0, 31);
-            break;
-         case '3':
-            renderHexDigit(x, 3, style, colour);
-            updscreen(0, 31);
-            break;
-         case '4':
-            renderHexDigit(x, 4, style, colour);
-            updscreen(0, 31);
-            break;
-         case '5':
-            renderHexDigit(x, 5, style, colour);
-            updscreen(0, 31);
-            break;
-         case '6':
-            renderHexDigit(x, 6, style, colour);
-            updscreen(0, 31);
-            break;
-         case '7':
-            renderHexDigit(x, 7, style, colour);
-            updscreen(0, 31);
-            break;
-         case '8':
-            renderHexDigit(x, 8, style, colour);
-            updscreen(0, 31);
-            break;
-         case '9':
-            renderHexDigit(x, 9, style, colour);
-            updscreen(0, 31);
-            break;
-         case 'a':
-         case 'A':
-            renderHexDigit(x, 0xA, style, colour);
-            updscreen(0, 31);
-            break;
-         case 'b':
-         case 'B':
-            renderHexDigit(x, 0xB, style, colour);
-            updscreen(0, 31);
-            break;
-         case 'c':
-         case 'C':
-            renderHexDigit(x, 0xC, style, colour);
-            updscreen(0, 31);
-            break;
-         case 'd':
-         case 'D':
-            renderHexDigit(x, 0xD, style, colour);
-            updscreen(0, 31);
-            break;
-         case 'e':
-         case 'E':
-            renderHexDigit(x, 0xE, style, colour);
-            updscreen(0, 31);
-            break;
-         case 'f':
-         case 'F':
-            renderHexDigit(x, 0xF, style, colour);
-            updscreen(0, 31);
-            break;
          case '/':
             printf("analogRead = %d, %d\n", analogRead(1), analogRead(8));
-            break;
-         case '.':
-            drawSegDP(x, style, colour);
-            updscreen(0, 31);
-            break;
-         case ':':
-            drawSegCN(x, style, colour);
-            updscreen(0, 31);
-            break;
-         case 'n':
-         case 'N':
-            style = PETROL_STATION_STYLE;
-            colour = PETROL_STATION_COLOUR;
-            break;
-         case 'v':
-         case 'V':
-            style = VFD_STYLE;
-            colour = VFD_COLOUR;
-            break;
-         case 'w':
-         case 'W':
-            style = LED_DOT_STYLE;
-            colour = LED_COLOUR;
-            break;
-         case 'x':
-         case 'X':
-            style = PANAPLEX_STYLE;
-            colour = PANAPLEX_COLOUR;
-            break;
-         case 'y':
-         case 'Y':
-            style = LED_BAR_STYLE;
-            colour = LED_COLOUR;
             break;
          case 'z':
          case 'Z':
