@@ -1268,7 +1268,10 @@ void delay(const int milliSeconds)
 
 int random(const int low, const int high)
 {
-   return ((low + high) / 2);
+   const int span = high - low;
+   const float r = (float)rand() / (float)RAND_MAX;
+   
+   return ((int)((low + (r * span)) + 0.5));
 }
 
 
