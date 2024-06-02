@@ -26,7 +26,7 @@
 #define NTARGETS  10    // Number of randomly-placed radar targets on playfield
 #define NECHOES   10    // Maximum number of echoes displayed
 
-#define DEFGAMEDURATION  (40)  // Number of rader scanner sweeps allowed
+#define DEFGAMEDURATION  (40)  // Number of radar scanner sweeps allowed
 #define MAXGAMEDURATION  (60)  // Maximum number of sweeps via power-up targets
 
 #define TIMERX  (MAXX - 9)
