@@ -23,6 +23,8 @@
 #define FONT_NCOLS   (5)
 #define FONT_NROWS   (8)
 
+#define SCANNER_RADIUS  (33)  // Radius of scanner display -- could increase with a power-up?
+
 #define NTARGETS  10    // Number of randomly-placed radar targets on playfield
 #define NECHOES   10    // Maximum number of echoes displayed
 
@@ -927,28 +929,33 @@ void drawBackground(void)
 
 /* drawRadarScreen --- draw the basic circular radar scope */
 
-void drawRadarScreen(const bool rings, const bool axes)
+void drawRadarScreen(const int radius, const bool rings, const bool axes)
 {
 //  unsigned long int before, after;
 
   // 1108us
 //  before = micros ();
-   circle (CENX, CENY, 33, SSD1351_WHITE, SSD1351_BLACK);
+   circle(CENX, CENY, radius, SSD1351_WHITE, SSD1351_BLACK);
 //  after = micros ();
   
 //  Serial.print (after - before);
 //  Serial.println ("us. circle 33");
    
+// circle(11, 11, 11, SSD1351_RED, -1);
+// circle((MAXX - 1) - 11, 11, 11, SSD1351_RED, -1);
+// circle((MAXX - 1) - 11, (MAXY - 1) - 11, 11, SSD1351_RED, -1);
+// circle(11, (MAXY - 1) - 11, 11, SSD1351_RED, -1);
+   
    // Range rings
    if (rings) {
-      circle(CENX, CENY, 11, SSD1351_GREEN, -1);
-      circle(CENX, CENY, 22, SSD1351_GREEN, -1);
+      circle(CENX, CENY, radius / 3, SSD1351_GREEN, -1);
+      circle(CENX, CENY, (radius * 2) / 3, SSD1351_GREEN, -1);
    }
   
    // Cardinal directions
    if (axes) {
-      drawVline(CENX, CENY - 33, CENY + 33, SSD1351_WHITE);
-      drawHline(CENX - 33, CENX + 33, CENY, SSD1351_WHITE);
+      drawVline(CENX, CENY - radius, CENY + radius, SSD1351_WHITE);
+      drawHline(CENX - radius, CENX + radius, CENY, SSD1351_WHITE);
    }
 }
 
@@ -994,7 +1001,7 @@ void drawTimer(const unsigned int sweeps)
 
 /* drawRadarVector --- draw the radial line representing the current scan vector */
 
-void drawRadarVector(const int r)
+void drawRadarVector(const int radius, const int angle)
 {
    // This function draws the radial line three times to make it
    // appear more clearly on the rather slow LCD. A better way
@@ -1003,22 +1010,23 @@ void drawRadarVector(const int r)
    // back to white. But that would require an efficient sector
    // drawing routine, which we don't have (yet).
    int x, y;
+   const float r = (float)radius;
 
    // 252us
-   x = (33.0 * cos ((double)r / RADTODEG)) + 0.49;
-   y = (33.0 * sin ((double)r / RADTODEG)) + 0.49;
+   x = (r * cos ((double)angle / RADTODEG)) + 0.49;
+   y = (r * sin ((double)angle / RADTODEG)) + 0.49;
 
    // 232us
    drawLine(CENX, CENY, CENX + x, CENY + y, SSD1351_GREEN);
 
-   x = (33.0 * cos ((double)(r + 2) / RADTODEG)) + 0.49;
-   y = (33.0 * sin ((double)(r + 2) / RADTODEG)) + 0.49;
+   x = (r * cos ((double)(angle + 2) / RADTODEG)) + 0.49;
+   y = (r * sin ((double)(angle + 2) / RADTODEG)) + 0.49;
 
    // 232us
    drawLine(CENX, CENY, CENX + x, CENY + y, SSD1351_GREEN);
 
-   x = (33.0 * cos ((double)(r + 4) / RADTODEG)) + 0.49;
-   y = (33.0 * sin ((double)(r + 4) / RADTODEG)) + 0.49;
+   x = (r * cos ((double)(angle + 4) / RADTODEG)) + 0.49;
+   y = (r * sin ((double)(angle + 4) / RADTODEG)) + 0.49;
 
    drawLine(CENX, CENY, CENX + x, CENY + y, SSD1351_GREEN);
 }
@@ -1070,7 +1078,7 @@ int findEchoSlot(void)
 
 /* findNewEchoes --- search the Target array for anything that will cause an echo */
 
-void findNewEchoes(const int r, const int nt)
+void findNewEchoes(const int r, const int range, const int nt)
 {
    // Targets have an 'active' flag so that we can make them disappear
    // after the user walks over them -- currently unimplemented.
@@ -1079,11 +1087,13 @@ void findNewEchoes(const int r, const int nt)
    // shapes other than circles.
    int t;
    int e;
+   const float frange = (float)range;
+   const float pickup = frange / 3.0;
 
    for (t = 0; t < nt; t++) {
       if (Target[t].active) {                            // Currently active?
          if (abs(Target[t].bearing - (float)r) < 6.0) {  // In the right direction?
-           if (Target[t].range < 33.0) {                  // Close enough?
+           if (Target[t].range < frange) {               // Close enough?
               // Make a new echo
               e = findEchoSlot();
               Echo[e].x = CENX + (Target[t].x - Player.x);  // Make player-relative co-ordinates
@@ -1091,7 +1101,7 @@ void findNewEchoes(const int r, const int nt)
               Echo[e].age = 90;                             // Echoes last 3/4 of a revolution
               Echo[e].rad = Target[t].siz;                  // Target size affects echo size
              
-              if (Target[t].range < 11.0) {  // Pick it up?
+              if (Target[t].range < pickup) {  // Pick it up?
                  Target[t].active = false;
                  Target[t].y = Gather_y;
                  Gather_y += 6;
@@ -1099,7 +1109,7 @@ void findNewEchoes(const int r, const int nt)
            }
          }
 
-         if (Target[t].range < 11.0) {  // Close enough for bonus (regardless of bearing)?
+         if (Target[t].range < pickup) {  // Close enough for bonus (regardless of bearing)?
             if (Target[t].rings)
                Rings = true;      // Enable range rings
              
@@ -1280,7 +1290,7 @@ void game_setup(void)
          Target[i].axes = false;
          Target[i].time = false;
          Target[i].siz = random(1, 3);
-         //Serial.print ("siz: ");
+         printf("%d: (%d, %d) siz: %d\n", i, Target[i].x, Target[i].y, Target[i].siz);
          //Serial.println ((int)Target[i].siz);
          // TODO: make sure no two targets are too close together
       } while (0);
@@ -1307,7 +1317,7 @@ void game_setup(void)
 
    drawBackground();
 
-   drawRadarScreen(true, true);
+   drawRadarScreen(SCANNER_RADIUS, true, true);
 
    fillRoundRect(CENX - (3 * 13) - 2, CENY - 8, CENX + (3 * 13) + 2, CENY + 12, 7, SSD1351_WHITE, SSD1351_BLACK);
    setText(CENX - (3 * 13), CENY, "Risible Radar");
@@ -1318,7 +1328,7 @@ void game_setup(void)
 
    drawBackground();
 
-   drawRadarScreen(true, true);
+   drawRadarScreen(SCANNER_RADIUS, true, true);
 
    fillRoundRect(CENX - (3 * 5) - 2, CENY - 8, CENX + (3 * 5) + 2, CENY + 12, 7, SSD1351_WHITE, SSD1351_BLACK);
    setText(CENX - (3 * 5), CENY, "READY");
@@ -1347,7 +1357,7 @@ void game_loop(void)
       // Draw empty radar scope
       drawBackground();
 
-      drawRadarScreen(Rings, Axes);
+      drawRadarScreen(SCANNER_RADIUS, Rings, Axes);
 
       drawGatheredTargets();
 
@@ -1361,10 +1371,10 @@ void game_loop(void)
       }
     
       // Draw current scan vector
-      drawRadarVector(r);
+      drawRadarVector(SCANNER_RADIUS, r);
 
       // Do we have any new echoes for this scanner bearing?
-      findNewEchoes(r, NTARGETS);
+      findNewEchoes(r, SCANNER_RADIUS, NTARGETS);
 
       // Add un-faded echoes
       for (e = 0; e < NECHOES; e++) {
