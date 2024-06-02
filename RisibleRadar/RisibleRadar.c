@@ -1223,6 +1223,40 @@ void movePlayer(const int dir)
 }
 
 
+/* _write --- connect stdio functions to UART1 */
+
+int _write(const int fd, const char *ptr, const int len)
+{
+   int i;
+
+   for (i = 0; i < len; i++) {
+      if (*ptr == '\n')
+         UART1TxByte('\r');
+      
+      UART1TxByte(*ptr++);
+   }
+  
+   return (len);
+}
+
+
+/* analogRead --- read the ADC */
+
+uint16_t analogRead(const int channel)
+{
+   ADC1->SQR3 = channel;
+   
+   ADC1->CR2 |= ADC_CR2_SWSTART;
+  
+   while ((ADC1->SR & ADC_SR_EOC) == 0)
+      ;
+  
+   return (ADC1->DR);
+}
+
+
+/* delay --- Arduino-like function to delay for miliiseconda */
+
 void delay(const int milliSeconds)
 {
    const int end = millis() + milliSeconds;
@@ -1232,7 +1266,93 @@ void delay(const int milliSeconds)
 }
 
 
-void loop(void)
+/* random --- Arduino-like function to return a random number */
+
+int random(const int low, const int high)
+{
+   return ((low + high) / 2);
+}
+
+
+/* game_setup --- initialise the game logic */
+
+void game_setup(void)
+{
+   int i;
+   
+   OLED_begin(MAXX, MAXY);
+   
+   greyFrame();
+    
+   updscreen(0, MAXY - 1);
+   
+   printf("RisibleRadar\n");
+   printf("John Honniball, June 2024\n");
+   printf("Ludum Dare MiniLD #34: Aspect\n");
+   
+   // Targets scattered on playfield at random
+   for (i = 0; i < NTARGETS; i++) {
+      do {
+         Target[i].x = random(0, MAXPLAYX);
+         Target[i].y = random(0, MAXPLAYY);
+      
+         Target[i].active = true;
+         Target[i].rings = false;
+         Target[i].axes = false;
+         Target[i].time = false;
+         Target[i].siz = random(1, 3);
+         //Serial.print ("siz: ");
+         //Serial.println ((int)Target[i].siz);
+         // TODO: make sure no two targets are too close together
+      } while (0);
+   }
+  
+   // Place the 'bonus' targets somewhere
+   i = random (0, NTARGETS - 1);
+   Target[i].rings = true;
+
+   i = random (0, NTARGETS - 1);
+   Target[i].axes = true;
+
+   i = random (0, NTARGETS - 1);
+   Target[i].time = true;
+
+   i = random (0, NTARGETS - 1);
+   Target[i].time = true;
+
+   // Start the player in centre of playfield
+   Player.x = MAXPLAYX / 2;
+   Player.y = MAXPLAYY / 2;
+   
+   reCalculateBearings();
+
+   drawBackground();
+
+   drawRadarScreen(true, true);
+
+   fillRoundRect(CENX - (3 * 13) - 2, CENY - 8, CENX + (3 * 13) + 2, CENY + 12, 7, SSD1351_WHITE, SSD1351_BLACK);
+   setText(CENX - (3 * 13), CENY, "Risible Radar");
+
+   updscreen(0, MAXY - 1);
+
+   delay(2000);
+
+   drawBackground();
+
+   drawRadarScreen(true, true);
+
+   fillRoundRect(CENX - (3 * 5) - 2, CENY - 8, CENX + (3 * 5) + 2, CENY + 12, 7, SSD1351_WHITE, SSD1351_BLACK);
+   setText(CENX - (3 * 5), CENY, "READY");
+
+   updscreen(0, MAXY - 1);
+   
+   // Wait here for user to press Start
+}
+
+
+/* game_loop --- main loop for the RisibleRadar game */
+
+void game_loop(void)
 {
    int r;
    int dir;
@@ -1300,44 +1420,6 @@ void loop(void)
    }
 
    Sweeps++;
-}
-
-
-/* _write --- connect stdio functions to UART1 */
-
-int _write(const int fd, const char *ptr, const int len)
-{
-   int i;
-
-   for (i = 0; i < len; i++) {
-      if (*ptr == '\n')
-         UART1TxByte('\r');
-      
-      UART1TxByte(*ptr++);
-   }
-  
-   return (len);
-}
-
-
-/* analogRead --- read the ADC */
-
-uint16_t analogRead(const int channel)
-{
-   ADC1->SQR3 = channel;
-   
-   ADC1->CR2 |= ADC_CR2_SWSTART;
-  
-   while ((ADC1->SR & ADC_SR_EOC) == 0)
-      ;
-  
-   return (ADC1->DR);
-}
-
-
-int random(const int low, const int high)
-{
-   return ((low + high) / 2);
 }
 
 
@@ -1579,7 +1661,6 @@ int main(void)
    uint32_t end;
    uint32_t frame;
    uint8_t flag = 0;
-   int i;
    
    initMCU();
    initGPIOs();
@@ -1591,78 +1672,15 @@ int main(void)
    
    __enable_irq();   // Enable all interrupts
    
-   OLED_begin(MAXX, MAXY);
-   
-   greyFrame();
-    
-   updscreen(0, MAXY - 1);
-   
    printf("\nHello from the STM%dF%d\n", 32, 411);
-   printf("RisibleRadar\n");
-   printf("John Honniball, June 2024\n");
-   printf("Ludum Dare MiniLD #34: Aspect\n");
    
-   // Targets scattered on playfield at random
-   for (i = 0; i < NTARGETS; i++) {
-      do {
-         Target[i].x = random(0, MAXPLAYX);
-         Target[i].y = random(0, MAXPLAYY);
-      
-         Target[i].active = true;
-         Target[i].rings = false;
-         Target[i].axes = false;
-         Target[i].time = false;
-         Target[i].siz = random(1, 3);
-         //Serial.print ("siz: ");
-         //Serial.println ((int)Target[i].siz);      
-         // TODO: make sure no two targets are too close together
-      } while (0);
-   }
-  
-   // Place the 'bonus' targets somewhere
-   i = random (0, NTARGETS - 1);
-   Target[i].rings = true;
-
-   i = random (0, NTARGETS - 1);
-   Target[i].axes = true;
-
-   i = random (0, NTARGETS - 1);
-   Target[i].time = true;
-
-   i = random (0, NTARGETS - 1);
-   Target[i].time = true;
-
-   // Start the player in centre of playfield
-   Player.x = MAXPLAYX / 2;
-   Player.y = MAXPLAYY / 2;
-   
-   reCalculateBearings();
-
-   drawBackground();
-
-   drawRadarScreen(true, true);
-
-   fillRoundRect(CENX - (3 * 13) - 2, CENY - 8, CENX + (3 * 13) + 2, CENY + 12, 7, SSD1351_WHITE, SSD1351_BLACK);
-   setText(CENX - (3 * 13), CENY, "Risible Radar");
-
-   updscreen(0, MAXY - 1);
-
-   delay(2000);
-
-   drawBackground();
-
-   drawRadarScreen(true, true);
-
-   fillRoundRect(CENX - (3 * 5) - 2, CENY - 8, CENX + (3 * 5) + 2, CENY + 12, 7, SSD1351_WHITE, SSD1351_BLACK);
-   setText(CENX - (3 * 5), CENY, "READY");
-
-   updscreen(0, MAXY - 1);
+   game_setup();
    
    end = millis() + 500u;
    frame = millis() + 40u;
    
    while (1)
-      loop();
+      game_loop();
    
    while (1) {
       if (Tick) {
