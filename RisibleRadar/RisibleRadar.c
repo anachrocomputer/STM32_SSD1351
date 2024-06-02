@@ -26,8 +26,8 @@
 #define NTARGETS  10    // Number of randomly-placed radar targets on playfield
 #define NECHOES   10    // Maximum number of echoes displayed
 
-#define DEFGAMEDURATION 40
-#define MAXGAMEDURATION 60
+#define DEFGAMEDURATION  (40)  // Number of rader scanner sweeps allowed
+#define MAXGAMEDURATION  (60)  // Maximum number of sweeps via power-up targets
 
 #define TIMERX  (MAXX - 9)
 #define TIMERY   4
@@ -174,9 +174,7 @@ struct coord_t Player;
 
 int Gather_y = 3;
 
-int GameDuration = DEFGAMEDURATION;
-
-int Sweeps = 0;
+unsigned int GameDuration = DEFGAMEDURATION;
 
 // Some attributes to "pick up" which are enhancements to the rather
 // crude radar. Other things we could add here would be: longer echo
@@ -999,15 +997,15 @@ void drawGatheredTargets(void)
 
 /* drawTimer --- visualise the game timer */
 
-void drawTimer(void)
+void drawTimer(const unsigned int sweeps)
 {
    // Very simple vertical bar on RHS of screen.
-   int y;
+   unsigned int y;
 
    fillRect(MAXX - 10, TIMERY, MAXX - 1, MAXGAMEDURATION + TIMERY, 1, 0);
   
    for (y = 1; y <= GameDuration; y++)
-      if (y < Sweeps)
+      if (y < sweeps)
          setHline(MAXX - 9, MAXX - 2, y + TIMERY, SSD1351_BLACK);
       else
          setHline(MAXX - 9, MAXX - 2, y + TIMERY, SSD1351_WHITE);
@@ -1354,6 +1352,7 @@ void game_setup(void)
 
 void game_loop(void)
 {
+   static unsigned int sweeps = 0;
    int r;
    int dir;
    int e;
@@ -1371,7 +1370,7 @@ void game_loop(void)
 
       drawGatheredTargets();
 
-      if (Sweeps < GameDuration) {
+      if (sweeps < GameDuration) {
          dir = getPlayerMove();
 
          if (dir != 0) {
@@ -1395,10 +1394,10 @@ void game_loop(void)
       }
     
       if (r == 180)
-         Sweeps++;
+         sweeps++;
       
-      if (Sweeps < GameDuration) {
-         drawTimer();
+      if (sweeps < GameDuration) {
+         drawTimer(sweeps);
       }
       else {
          fillRoundRect(CENX - (3 * 9) - 2, CENY - 8, CENX + (3 * 9) + 2, CENY + 12, 7, SSD1351_WHITE, SSD1351_BLACK);
@@ -1419,7 +1418,7 @@ void game_loop(void)
          delay(40 - elapsed);
    }
 
-   Sweeps++;
+   sweeps++;
 }
 
 
