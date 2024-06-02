@@ -52,7 +52,7 @@ RisibleRadar.bin: RisibleRadar.elf
 	$(OC) $(OCFLAGS) RisibleRadar.elf RisibleRadar.bin
 
 RisibleRadar.elf: RisibleRadar.o startup_stm32f411xe.o system_stm32f4xx.o
-	$(LD) -mcpu=$(MCU) $(LDFLAGS) startup_stm32f411xe.o system_stm32f4xx.o RisibleRadar.o
+	$(LD) -mcpu=$(MCU) $(LDFLAGS) startup_stm32f411xe.o system_stm32f4xx.o RisibleRadar.o -lm
 	$(SZ) $(SZFLAGS) RisibleRadar.elf
 	
 RisibleRadar.o: RisibleRadar.c image.h petrol.h P1030550_tiny.h
