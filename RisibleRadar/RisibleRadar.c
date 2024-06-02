@@ -455,15 +455,15 @@ void OLED_begin(const int wd, const int ht)
 }
 
 
-/* setPixel --- set a single pixel */
+/* drawPixel --- draw a single pixel */
 
-void setPixel(const unsigned int x, const unsigned int y, const uint16_t c)
+void drawPixel(const unsigned int x, const unsigned int y, const uint16_t c)
 {
     if ((x < MAXX) && (y < MAXY))
         Frame[y][x] = c;
     else
     {
-//      Serial.print("setPixel(");
+//      Serial.print("drawPixel(");
 //      Serial.print(x);
 //      Serial.print(",");
 //      Serial.print(y);
@@ -516,9 +516,9 @@ void setText(const int x, const int y, const char *str)
 }
 
 
-/* setLine --- draw a line between any two absolute co-ords */
+/* drawLine --- draw a line between any two absolute co-ords */
 
-void setLine(int x1, int y1, int x2, int y2, const int c)
+void drawLine(int x1, int y1, int x2, int y2, const int c)
 {
    // Bresenham's line drawing algorithm. Originally coded on the IBM PC
    // with EGA card in 1986.
@@ -564,7 +564,7 @@ void setLine(int x1, int y1, int x2, int y2, const int c)
       else
          xinc = 1;
 
-      setPixel(x, y, c);
+      drawPixel(x, y, c);
 
       while (y < yend) {
          y++;    
@@ -575,7 +575,7 @@ void setLine(int x1, int y1, int x2, int y2, const int c)
             d += i2;
          }
 
-         setPixel(x, y, c);
+         drawPixel(x, y, c);
       }
    }
    else {          
@@ -599,7 +599,7 @@ void setLine(int x1, int y1, int x2, int y2, const int c)
       else
          yinc = 1;
 
-      setPixel(x, y, c);
+      drawPixel(x, y, c);
 
       while (x < xend) {
          x++;
@@ -610,31 +610,31 @@ void setLine(int x1, int y1, int x2, int y2, const int c)
             d += i2;
          }
 
-         setPixel(x, y, c);
+         drawPixel(x, y, c);
       }
    }
 }
 
 
-/* setVline --- draw vertical line */
+/* drawVline --- draw vertical line */
 
-void setVline(const unsigned int x, const unsigned int y1, const unsigned int y2, const uint16_t c)
+void drawVline(const unsigned int x, const unsigned int y1, const unsigned int y2, const uint16_t c)
 {
-    unsigned int y;
+   unsigned int y;
 
-    for (y = y1; y <= y2; y++)
-        Frame[y][x] = c;
+   for (y = y1; y <= y2; y++)
+      Frame[y][x] = c;
 }
 
 
-/* setHline --- set pixels in a horizontal line */
+/* drawHline --- draw pixels in a horizontal line */
 
-void setHline(const unsigned int x1, const unsigned int x2, const unsigned int y, const uint16_t c)
+void drawHline(const unsigned int x1, const unsigned int x2, const unsigned int y, const uint16_t c)
 {
-    unsigned int x;
+   unsigned int x;
 
-    for (x = x1; x <= x2; x++)
-        Frame[y][x] = c;
+   for (x = x1; x <= x2; x++)
+      Frame[y][x] = c;
 }
 
 
@@ -642,10 +642,10 @@ void setHline(const unsigned int x1, const unsigned int x2, const unsigned int y
 
 static void cfill(const int x0, const int y0, const int x, const int y, const int c)
 {
-   setHline(x0 - x, x0 + x, y0 + y, c);
-   setHline(x0 - x, x0 + x, y0 - y, c);
-   setHline(x0 - y, x0 + y, y0 + x, c);
-   setHline(x0 - y, x0 + y, y0 - x, c);
+   drawHline(x0 - x, x0 + x, y0 + y, c);
+   drawHline(x0 - x, x0 + x, y0 - y, c);
+   drawHline(x0 - y, x0 + y, y0 + x, c);
+   drawHline(x0 - y, x0 + y, y0 - x, c);
 }
 
 
@@ -653,16 +653,16 @@ static void cfill(const int x0, const int y0, const int x, const int y, const in
 
 static void cpts4(const int x0, const int y0, const int x, const int y, const int c)
 {
-   setPixel(x0 + x, y0 + y, c);
+   drawPixel(x0 + x, y0 + y, c);
 
 //  if (x != 0)
-   setPixel(x0 - x, y0 + y, c);
+   drawPixel(x0 - x, y0 + y, c);
 
 //  if (y != 0)  
-   setPixel(x0 + x, y0 - y, c);
+   drawPixel(x0 + x, y0 - y, c);
 
 //  if ((x != 0) && (y != 0))
-   setPixel(x0 - x, y0 - y, c);
+   drawPixel(x0 - x, y0 - y, c);
 }
 
 
@@ -681,10 +681,10 @@ static void cpts8(const int x0, const int y0, const int x, const int y, const in
 
 static void splitcfill(const int x0, const int y0, const int x1, const int y1, const int x, const int y, const int c)
 {
-   setHline(x0 - x, x1 + x, y1 + y, c);
-   setHline(x0 - x, x1 + x, y0 - y, c);
-   setHline(x0 - y, x1 + y, y1 + x, c);
-   setHline(x0 - y, x1 + y, y0 - x, c);
+   drawHline(x0 - x, x1 + x, y1 + y, c);
+   drawHline(x0 - x, x1 + x, y0 - y, c);
+   drawHline(x0 - y, x1 + y, y1 + x, c);
+   drawHline(x0 - y, x1 + y, y0 - x, c);
 }
 
 
@@ -692,16 +692,16 @@ static void splitcfill(const int x0, const int y0, const int x1, const int y1, c
 
 static void splitcpts4(const int x0, const int y0, const int x1, const int y1, const int x, const int y, const int c)
 {
-   setPixel(x1 + x, y1 + y, c);
+   drawPixel(x1 + x, y1 + y, c);
 
 //  if (x != 0)
-   setPixel(x0 - x, y1 + y, c);
+   drawPixel(x0 - x, y1 + y, c);
 
 //  if (y != 0)  
-   setPixel(x1 + x, y0 - y, c);
+   drawPixel(x1 + x, y0 - y, c);
 
 //  if ((x != 0) && (y != 0))
-   setPixel(x0 - x, y0 - y, c);
+   drawPixel(x0 - x, y0 - y, c);
 }
 
 
@@ -826,13 +826,13 @@ void fillRoundRect(const int x0, const int y0, const int x1, const int y1, const
 
    drawSplitCircle(x0 + r, y0 + r, x1 - r, y1 - r, r, ec, fc);
 
-   setHline(x0 + r, x1 - r, y0, ec);
-   setHline(x0 + r, x1 - r, y1, ec);
-   setVline(x0, y0 + r, y1 - r, ec);
-   setVline(x1, y0 + r, y1 - r, ec);
+   drawHline(x0 + r, x1 - r, y0, ec);
+   drawHline(x0 + r, x1 - r, y1, ec);
+   drawVline(x0, y0 + r, y1 - r, ec);
+   drawVline(x1, y0 + r, y1 - r, ec);
 
    for (y = y0 + r; y < (y1 - r); y++)
-      setHline (x0 + 1, x1 - 1, y, fc);
+      drawHline (x0 + 1, x1 - 1, y, fc);
 }
 
 
@@ -863,10 +863,10 @@ void greyFrame(void)
 
 void setRect(const int x1, const int y1, const int x2, const int y2, const uint16_t c)
 {
-    setHline(x1, x2, y1, c);
-    setVline(x2, y1, y2, c);
-    setHline(x1, x2, y2, c);
-    setVline(x1, y1, y2, c);
+    drawHline(x1, x2, y1, c);
+    drawVline(x2, y1, y2, c);
+    drawHline(x1, x2, y2, c);
+    drawVline(x1, y1, y2, c);
 }
 
 
@@ -877,34 +877,12 @@ void fillRect(const int x1, const int y1, const int x2, const int y2, const uint
     int y;
 
     for (y = y1; y <= y2; y++)
-        setHline(x1, x2, y, fc);
+        drawHline(x1, x2, y, fc);
 
-    setHline(x1, x2, y1, ec);
-    setVline(x2, y1, y2, ec);
-    setHline(x1, x2, y2, ec);
-    setVline(x1, y1, y2, ec);
-}
-
-
-/* renderBitmap --- render pixels into the framebuffer according to a bitmap */
-
-void renderBitmap(const int x1, const int y1, const int wd, const int ht, const uint8_t *bitmap, const int stride, const uint16_t fg, const uint16_t bg)
-{
-    int x, y;
-    int i, j;
-    const uint8_t *row;
-    const int x2 = x1 + wd - 1;
-    const int y2 = y1 + ht - 1;
-    
-    for (y = y1, i = 0; y <= y2; y++, i++) {
-        row = bitmap + (stride * (i / 8));
-        
-        for (x = x1, j = 0; x <= x2; x++, j++)
-            if (row[j] & (1 << (i % 8)))
-                Frame[y][x] = fg;
-            else
-                Frame[y][x] = bg;
-    }
+    drawHline(x1, x2, y1, ec);
+    drawVline(x2, y1, y2, ec);
+    drawHline(x1, x2, y2, ec);
+    drawVline(x1, y1, y2, ec);
 }
 
 
@@ -918,12 +896,12 @@ void drawBackground(void)
    for (y = 0; y < MAXY; y++) {
       for (x = 0; x < MAXX; x += 2) {
          if (y & 1) {
-            setPixel(x, y, SSD1351_WHITE);
-            setPixel(x + 1, y, SSD1351_BLACK);
+            drawPixel(x, y, SSD1351_WHITE);
+            drawPixel(x + 1, y, SSD1351_BLACK);
          }
          else {
-            setPixel(x, y, SSD1351_BLACK);
-            setPixel(x + 1, y, SSD1351_WHITE);
+            drawPixel(x, y, SSD1351_BLACK);
+            drawPixel(x + 1, y, SSD1351_WHITE);
          }  
       }
    }
@@ -969,8 +947,8 @@ void drawRadarScreen(const bool rings, const bool axes)
   
    // Cardinal directions
    if (axes) {
-      setVline(CENX, 0, MAXY, SSD1351_WHITE);
-      setHline(CENX - 33, CENX + 33, CENY, SSD1351_WHITE);
+      drawVline(CENX, CENY - 33, CENY + 33, SSD1351_WHITE);
+      drawHline(CENX - 33, CENX + 33, CENY, SSD1351_WHITE);
    }
 }
 
@@ -989,7 +967,7 @@ void drawGatheredTargets(void)
          circle(12, Target[t].y, 2, SSD1351_WHITE, -1);
 
       if (Target[t].axes)
-         setPixel(12, Target[t].y, SSD1351_WHITE);
+         drawPixel(12, Target[t].y, SSD1351_WHITE);
       }
    }
 }
@@ -1006,11 +984,11 @@ void drawTimer(const unsigned int sweeps)
   
    for (y = 1; y <= GameDuration; y++)
       if (y < sweeps)
-         setHline(MAXX - 9, MAXX - 2, y + TIMERY, SSD1351_BLACK);
+         drawHline(MAXX - 9, MAXX - 2, y + TIMERY, SSD1351_BLACK);
       else
-         setHline(MAXX - 9, MAXX - 2, y + TIMERY, SSD1351_WHITE);
+         drawHline(MAXX - 9, MAXX - 2, y + TIMERY, SSD1351_WHITE);
   
-   setHline(MAXX - 9, MAXX - 2, GameDuration + TIMERY, SSD1351_WHITE);
+   drawHline(MAXX - 9, MAXX - 2, GameDuration + TIMERY, SSD1351_WHITE);
 }
 
 
@@ -1031,18 +1009,18 @@ void drawRadarVector(const int r)
    y = (33.0 * sin ((double)r / RADTODEG)) + 0.49;
 
    // 232us
-   setLine(MAXX / 2, MAXY / 2, (MAXX / 2) + x, (MAXY / 2) + y, SSD1351_GREEN);
+   drawLine(CENX, CENY, CENX + x, CENY + y, SSD1351_GREEN);
 
    x = (33.0 * cos ((double)(r + 2) / RADTODEG)) + 0.49;
    y = (33.0 * sin ((double)(r + 2) / RADTODEG)) + 0.49;
 
    // 232us
-   setLine(MAXX / 2, MAXY / 2, (MAXX / 2) + x, (MAXY / 2) + y, SSD1351_GREEN);
+   drawLine(CENX, CENY, CENX + x, CENY + y, SSD1351_GREEN);
 
    x = (33.0 * cos ((double)(r + 4) / RADTODEG)) + 0.49;
    y = (33.0 * sin ((double)(r + 4) / RADTODEG)) + 0.49;
 
-   setLine(MAXX / 2, MAXY / 2, (MAXX / 2) + x, (MAXY / 2) + y, SSD1351_GREEN);
+   drawLine(CENX, CENY, CENX + x, CENY + y, SSD1351_GREEN);
 }
 
 
@@ -1104,10 +1082,10 @@ void findNewEchoes(const int r, const int nt)
 
    for (t = 0; t < nt; t++) {
       if (Target[t].active) {                            // Currently active?
-         if (abs (Target[t].bearing - (float)r) < 6.0) {  // In the right direction?
+         if (abs(Target[t].bearing - (float)r) < 6.0) {  // In the right direction?
            if (Target[t].range < 33.0) {                  // Close enough?
               // Make a new echo
-              e = findEchoSlot ();
+              e = findEchoSlot();
               Echo[e].x = CENX + (Target[t].x - Player.x);  // Make player-relative co-ordinates
               Echo[e].y = CENY + (Target[t].y - Player.y);
               Echo[e].age = 90;                             // Echoes last 3/4 of a revolution
@@ -1391,7 +1369,7 @@ void game_loop(void)
       // Add un-faded echoes
       for (e = 0; e < NECHOES; e++) {
          if (Echo[e].age > 0)
-            circle(Echo[e].x, Echo[e].y, Echo[e].rad, SSD1351_WHITE, SSD1351_WHITE);
+            circle(Echo[e].x, Echo[e].y, Echo[e].rad, SSD1351_GREEN, SSD1351_GREEN);
 
          Echo[e].age--;
       }
@@ -1732,12 +1710,12 @@ int main(void)
             break;
          case 'q':
          case 'Q':
-            setVline(MAXX / 4,       0, MAXY - 1, SSD1351_WHITE);
-            setVline(MAXX / 2,       0, MAXY - 1, SSD1351_WHITE);
-            setVline((MAXX * 3) / 4, 0, MAXY - 1, SSD1351_WHITE);
-            setHline(0, MAXX - 1, MAXY / 4, SSD1351_WHITE);
-            setHline(0, MAXX - 1, MAXY / 2, SSD1351_WHITE);
-            setHline(0, MAXX - 1, (MAXY * 3) / 4, SSD1351_WHITE);
+            drawVline(MAXX / 4,       0, MAXY - 1, SSD1351_WHITE);
+            drawVline(MAXX / 2,       0, MAXY - 1, SSD1351_WHITE);
+            drawVline((MAXX * 3) / 4, 0, MAXY - 1, SSD1351_WHITE);
+            drawHline(0, MAXX - 1, MAXY / 4, SSD1351_WHITE);
+            drawHline(0, MAXX - 1, MAXY / 2, SSD1351_WHITE);
+            drawHline(0, MAXX - 1, (MAXY * 3) / 4, SSD1351_WHITE);
             updscreen(0, MAXY - 1);
             break;
          case '/':
