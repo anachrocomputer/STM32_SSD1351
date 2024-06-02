@@ -55,7 +55,7 @@ RisibleRadar.elf: RisibleRadar.o startup_stm32f411xe.o system_stm32f4xx.o
 	$(LD) -mcpu=$(MCU) $(LDFLAGS) startup_stm32f411xe.o system_stm32f4xx.o RisibleRadar.o -lm
 	$(SZ) $(SZFLAGS) RisibleRadar.elf
 	
-RisibleRadar.o: RisibleRadar.c image.h petrol.h P1030550_tiny.h
+RisibleRadar.o: RisibleRadar.c font.h
 	$(CC) -mcpu=$(MCU) $(CFLAGS) RisibleRadar.c
 
 system_stm32f4xx.o: $(SYSTEM)
@@ -63,18 +63,6 @@ system_stm32f4xx.o: $(SYSTEM)
 
 startup_stm32f411xe.o: $(STARTUP)
 	$(CC) -mcpu=$(MCU) $(CFLAGS) $(STARTUP)
-
-image.h: image.pbm pbm2oled
-	./pbm2oled image.pbm OLEDImage >image.h
-
-petrol.h: ../petrol.pbm pbm2oled
-	./pbm2oled ../petrol.pbm PetrolDigits >petrol.h
-
-P1030550_tiny.h: ../P1030550_tiny.ppm ../ppm2c.py
-	python ../ppm2c.py ../P1030550_tiny.ppm P1030550_tiny.h Copen64
-
-pbm2oled: ../pbm2oled.c
-	gcc -o pbm2oled ../pbm2oled.c
 
 # Target to invoke the programmer and program the flash memory of the MCU
 prog: RisibleRadar.bin
@@ -91,7 +79,7 @@ teststlink:
 
 # Target 'clean' will delete all object files, ELF files, and BIN files
 clean:
-	-rm -f $(OBJS) $(ELFS) $(BINS) startup_stm32f411xe.o system_stm32f4xx.o pbm2oled image.h petrol.h P1030550_tiny.h
+	-rm -f $(OBJS) $(ELFS) $(BINS) startup_stm32f411xe.o system_stm32f4xx.o
 
 .PHONY: clean
 

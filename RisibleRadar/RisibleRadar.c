@@ -10,6 +10,8 @@
 #include <math.h>
 #include <ctype.h>
 
+#include "font.h"
+
 // Size of 128x128 OLED screen
 #define MAXX 128
 #define MAXY 128
@@ -17,6 +19,9 @@
 // Co-ord of centre of screen
 #define CENX (MAXX / 2)
 #define CENY (MAXY / 2)
+
+#define FONT_NCOLS   (5)
+#define FONT_NROWS   (8)
 
 #define NTARGETS  10    // Number of randomly-placed radar targets on playfield
 #define NECHOES   10    // Maximum number of echoes displayed
@@ -471,28 +476,44 @@ void setPixel(const unsigned int x, const unsigned int y, const uint16_t c)
 
 /* setText --- draw text into buffer using predefined font */
 
-void setText(int x, const int y, const char *str)
+void setText(const int x, const int y, const char *str)
 {
-   // This function does not, as yet, allow for pixel row positioning of text.
-   // The Y co-ordinate is rounded to the nearest row of display RAM bytes.
-   // The font (475 bytes) is held in program memory (Flash) to reduce RAM
-   // usage. The AVR is a Harvard architecture machine and needs a special
-   // instruction to read program memory, which is implemented in C as the
-   // 'pgm_read_byte_near' function.
-// int row;
-   int i;
-   int d;
-
-// row = y >> 3;
+   // This function does not, as yet, allow for foreground and background
+   // text colours to be passed in as parameters. It just draws white text
+   // on a black background.
+   int row, col;
+   int i, j;
+   const uint16_t fg = SSD1351_WHITE;
+   const uint16_t bg = SSD1351_BLACK;
+   
+   col = x;
 
    for ( ; *str; str++) {
-      d = (*str - ' ') * 5;
+      const int d = (*str - ' ') * FONT_NCOLS;
     
-      for (i = 0; i < 5; i++, d++) {
-//       Frame[row][x++] = pgm_read_byte_near (font_data + d);
+      for (i = 0; i < FONT_NCOLS; i++) {
+         const int bits = Font_data[d + i];
+         row = y;
+         
+         for (j = 0; j < FONT_NROWS; j++) {
+            if (bits & (1 << j))
+               Frame[row][col] = fg;
+            else
+               Frame[row][col] = bg;
+            
+            row++;
+         }
+         
+         col++;
       }
-    
-//    Frame[row][x++] = 0;
+      
+      row = y;
+      
+      for (j = 0; j < FONT_NROWS; j++) {
+         Frame[row++][col] = bg;
+      }
+      
+      col++;
    }
 }
 
