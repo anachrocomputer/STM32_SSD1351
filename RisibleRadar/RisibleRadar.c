@@ -12,6 +12,10 @@
 
 #include "font.h"
 
+#define ADC_RANGE    (4096)            // Range of 12-bit ADC (0-4095)
+#define ADC_CENTRE   (ADC_RANGE / 2)   // Middle of range
+#define ADC_DEADBAND (ADC_RANGE / 8)   // Deadband for joystick nutral
+
 // Size of 128x128 OLED screen
 #define MAXX 128
 #define MAXY 128
@@ -137,7 +141,6 @@ enum STYLE {
    VFD_STYLE
 };
 
-uint16_t analogRead(const int channel);
 
 // UART buffers
 struct UART_BUFFER U1Buf;
@@ -301,6 +304,21 @@ void UART1TxByte(const uint8_t data)
    U1Buf.tx.head = tmphead;
 
    USART1->CR1 |= USART_CR1_TXEIE;   // Enable UART1 Tx Empty interrupt
+}
+
+
+/* analogRead --- read the ADC */
+
+uint16_t analogRead(const int channel)
+{
+   ADC1->SQR3 = channel;
+   
+   ADC1->CR2 |= ADC_CR2_SWSTART;
+  
+   while ((ADC1->SR & ADC_SR_EOC) == 0)
+      ;
+  
+   return (ADC1->DR);
 }
 
 
@@ -1132,31 +1150,27 @@ void findNewEchoes(const int r, const int range, const int nt)
 
 int getPlayerMove(void)
 {
-   // The analog joystick is on Arduino analog pins 0 and 1 for
+   // The analog joystick is on STM32 analog pins 1 and 8 for
    // X and Y respectively. The range of an analog input is
-   // 0-1023 (10 bits), so the middle position is about 512.
+   // 0-4095 (12 bits), so the middle position is about 2048.
    // At present, only four movement directions are possible.
    int x, y;
    int dir = 0;
 
-   x = analogRead(0);
-   y = analogRead(1);
+   x = analogRead(1);
+   y = analogRead(8);
 
-   if (x < (512 - 128))
+   if (x < (ADC_CENTRE - ADC_DEADBAND))
      dir = WEST;
-   else if (x > (512 + 128))
+   else if (x > (ADC_CENTRE + ADC_DEADBAND))
      dir = EAST;
 
-   if (y < (512 - 128))
+   if (y < (ADC_CENTRE - ADC_DEADBAND))
      dir = NORTH;
-   else if (y > (512 + 128))
+   else if (y > (ADC_CENTRE + ADC_DEADBAND))
      dir = SOUTH;
     
-   //Serial.print ("Player: ");
-   //Serial.println (dir);
-   //Serial.print (x);
-   //Serial.print (",");
-   //Serial.println (y);
+   //printf("Joy: %d (%d,%d)\n", dir, x, y);
 
    switch (dir) {
    case 0:
@@ -1202,10 +1216,7 @@ void movePlayer(const int dir)
       break;
    }
   
-//Serial.print ("New player pos: ");
-//Serial.print (Player.x);
-//Serial.print (", ");  
-//Serial.println (Player.y);
+   //printf("New player pos: (%d,%d)\n", Player.x, Player.y);
 }
 
 
@@ -1223,21 +1234,6 @@ int _write(const int fd, const char *ptr, const int len)
    }
   
    return (len);
-}
-
-
-/* analogRead --- read the ADC */
-
-uint16_t analogRead(const int channel)
-{
-   ADC1->SQR3 = channel;
-   
-   ADC1->CR2 |= ADC_CR2_SWSTART;
-  
-   while ((ADC1->SR & ADC_SR_EOC) == 0)
-      ;
-  
-   return (ADC1->DR);
 }
 
 
@@ -1291,7 +1287,6 @@ void game_setup(void)
          Target[i].time = false;
          Target[i].siz = random(1, 3);
          printf("%d: (%d, %d) siz: %d\n", i, Target[i].x, Target[i].y, Target[i].siz);
-         //Serial.println ((int)Target[i].siz);
          // TODO: make sure no two targets are too close together
       } while (0);
    }
@@ -1402,8 +1397,7 @@ void game_loop(void)
       now = millis();
       elapsed = now - start;
     
-//    Serial.print(elapsed);
-//    Serial.println("ms.");
+//    printf("%dms.\n", elapsed);
     
       if (elapsed < 40)
          delay(40 - elapsed);
