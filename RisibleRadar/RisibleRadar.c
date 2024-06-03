@@ -14,7 +14,7 @@
 
 #define ADC_RANGE    (4096)            // Range of 12-bit ADC (0-4095)
 #define ADC_CENTRE   (ADC_RANGE / 2)   // Middle of range
-#define ADC_DEADBAND (ADC_RANGE / 8)   // Deadband for joystick nutral
+#define ADC_DEADBAND (ADC_RANGE / 8)   // Deadband for joystick neutral
 
 // Size of 128x128 OLED screen
 #define MAXX 128
