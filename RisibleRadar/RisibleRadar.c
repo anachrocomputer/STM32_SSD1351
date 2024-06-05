@@ -856,6 +856,19 @@ void fillRoundRect(const int x0, const int y0, const int x1, const int y1, const
 }
 
 
+/* textRoundRect --- draw text centralised in a rounded rectangle */
+
+void textRoundRect(const char *const str, const int ec, const int fc, const int tc)
+{
+   const int len = strlen(str);
+   const int x1 = CENX - (3 * len);
+   const int x2 = CENX + (3 * len);
+   
+   fillRoundRect(x1 - 2, CENY - 8, x2 + 2, CENY + 12, 7, ec, fc);
+   setText(x1, CENY, str);
+}
+
+
 /* greyFrame --- clear entire frame to checkerboard pattern */
 
 void greyFrame(void)
@@ -1314,8 +1327,7 @@ void game_setup(void)
 
    drawRadarScreen(SCANNER_RADIUS, true, true);
 
-   fillRoundRect(CENX - (3 * 13) - 2, CENY - 8, CENX + (3 * 13) + 2, CENY + 12, 7, SSD1351_WHITE, SSD1351_BLACK);
-   setText(CENX - (3 * 13), CENY, "Risible Radar");
+   textRoundRect("Risible Radar", SSD1351_WHITE, SSD1351_BLACK, SSD1351_WHITE);
 
    updscreen(0, MAXY - 1);
 
@@ -1325,8 +1337,7 @@ void game_setup(void)
 
    drawRadarScreen(SCANNER_RADIUS, true, true);
 
-   fillRoundRect(CENX - (3 * 5) - 2, CENY - 8, CENX + (3 * 5) + 2, CENY + 12, 7, SSD1351_WHITE, SSD1351_BLACK);
-   setText(CENX - (3 * 5), CENY, "READY");
+   textRoundRect("READY", SSD1351_WHITE, SSD1351_BLACK, SSD1351_WHITE);
 
    updscreen(0, MAXY - 1);
    
@@ -1386,8 +1397,7 @@ void game_loop(void)
          drawTimer(sweeps);
       }
       else {
-         fillRoundRect(CENX - (3 * 9) - 2, CENY - 8, CENX + (3 * 9) + 2, CENY + 12, 7, SSD1351_WHITE, SSD1351_BLACK);
-         setText(CENX - (3 * 9), CENY, "GAME OVER");
+         textRoundRect("GAME OVER", SSD1351_WHITE, SSD1351_BLACK, SSD1351_WHITE);
       }
       
       // Update LCD for this frame
