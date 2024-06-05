@@ -10,6 +10,7 @@
 #include <math.h>
 #include <ctype.h>
 
+#include "arrows.h"
 #include "font.h"
 
 #define ADC_RANGE    (4096)            // Range of 12-bit ADC (0-4095)
@@ -919,6 +920,28 @@ void fillRect(const int x1, const int y1, const int x2, const int y2, const uint
 }
 
 
+/* renderBitmap --- render pixels into the framebuffer according to a bitmap */
+
+void renderBitmap(const int x1, const int y1, const int wd, const int ht, const uint8_t *bitmap, const int stride, const uint16_t fg, const uint16_t bg)
+{
+    int x, y;
+    int i, j;
+    const uint8_t *row;
+    const int x2 = x1 + wd - 1;
+    const int y2 = y1 + ht - 1;
+    
+    for (y = y1, i = 0; y <= y2; y++, i++) {
+        row = bitmap + (stride * (i / 8));
+        
+        for (x = x1, j = 0; x <= x2; x++, j++)
+            if (row[j] & (1 << (i % 8)))
+                Frame[y][x] = fg;
+            else
+                Frame[y][x] = bg;
+    }
+}
+
+
 /* drawBackground --- draw the screen background */
 
 void drawBackground(void)
@@ -1189,10 +1212,12 @@ int getPlayerMove(void)
    case 0:
       break;
    case NORTH:
-      setText(0, 0, "North");
+      renderBitmap(0, 0, 24, 24, &Arrows[0][0], 240, SSD1351_GREEN, SSD1351_BLACK);
+      //setText(0, 0, "North");
       break;
    case SOUTH:
-      setText(0, 0, "South");
+      renderBitmap(0, 0, 24, 24, &Arrows[0][24], 240, SSD1351_GREEN, SSD1351_BLACK);
+      //setText(0, 0, "South");
       break;
    case EAST:
       setText(0, 0, "East");

@@ -2,4 +2,8 @@
 *.elf
 *.bin
 *.hex
+arrows.h
+image.h
+P1030550_tiny.h
+petrol.h
 pbm2oled

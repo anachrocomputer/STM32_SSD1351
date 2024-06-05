@@ -55,7 +55,7 @@ RisibleRadar.elf: RisibleRadar.o startup_stm32f411xe.o system_stm32f4xx.o
 	$(LD) -mcpu=$(MCU) $(LDFLAGS) startup_stm32f411xe.o system_stm32f4xx.o RisibleRadar.o -lm
 	$(SZ) $(SZFLAGS) RisibleRadar.elf
 	
-RisibleRadar.o: RisibleRadar.c font.h
+RisibleRadar.o: RisibleRadar.c font.h arrows.h
 	$(CC) -mcpu=$(MCU) $(CFLAGS) RisibleRadar.c
 
 system_stm32f4xx.o: $(SYSTEM)
@@ -63,6 +63,12 @@ system_stm32f4xx.o: $(SYSTEM)
 
 startup_stm32f411xe.o: $(STARTUP)
 	$(CC) -mcpu=$(MCU) $(CFLAGS) $(STARTUP)
+
+arrows.h: arrows.pbm pbm2oled
+	./pbm2oled arrows.pbm Arrows >arrows.h
+
+pbm2oled: ../pbm2oled.c
+	gcc -o pbm2oled ../pbm2oled.c
 
 # Target to invoke the programmer and program the flash memory of the MCU
 prog: RisibleRadar.bin
