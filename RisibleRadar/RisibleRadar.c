@@ -1176,6 +1176,7 @@ void findNewEchoes(const int r, const int range, const int nt)
                   GameDuration += 5;
              
                Target[t].time = false;  // Only trigger once!
+               printf("More time: Target[%d] (%d,%d)\n", t, Target[t].x, Target[t].y);
             }
          }
       }
