@@ -28,7 +28,8 @@
 #define FONT_NCOLS   (5)
 #define FONT_NROWS   (8)
 
-#define SCANNER_RADIUS  (33)  // Radius of scanner display -- could increase with a power-up?
+#define SCANNER_RADIUS      (60)  // Radius of scanner display -- could increase with a power-up?
+#define SCANNER_INC_DEGREES (3)   // Increment of scanner angle for each scan
 
 #define NTARGETS  10    // Number of randomly-placed radar targets on playfield
 #define NECHOES   10    // Maximum number of echoes displayed
@@ -1152,7 +1153,7 @@ void findNewEchoes(const int r, const int range, const int nt)
               e = findEchoSlot();
               Echo[e].x = CENX + (Target[t].x - Player.x);  // Make player-relative co-ordinates
               Echo[e].y = CENY + (Target[t].y - Player.y);
-              Echo[e].age = 90;                             // Echoes last 3/4 of a revolution
+              Echo[e].age = 270;                            // Echoes last 3/4 of a revolution
               Echo[e].rad = Target[t].siz;                  // Target size affects echo size
              
               if (Target[t].range < pickup) {  // Pick it up?
@@ -1381,7 +1382,7 @@ void game_loop(void)
    long int start, now;
    int elapsed;
 
-   for (r = 0; r < 360; r += 3) {
+   for (r = 0; r < 360; r += SCANNER_INC_DEGREES) {
       // Record timer in milliseconds at start of frame cycle
       start = millis();
 
@@ -1412,7 +1413,7 @@ void game_loop(void)
          if (Echo[e].age > 0)
             circle(Echo[e].x, Echo[e].y, Echo[e].rad, SSD1351_GREEN, SSD1351_GREEN);
 
-         Echo[e].age--;
+         Echo[e].age -= SCANNER_INC_DEGREES;
       }
     
       if (r == 180)
