@@ -97,11 +97,6 @@ enum cardinalDirections {
 #define SSD1351_GREY50         (0x000f | 0x03e0 | 0x7800)
 #define SSD1351_GREY25         (0x0007 | 0x01e0 | 0x3800)
 
-#define VFD_COLOUR             SSD1351_CYAN
-#define LED_COLOUR             SSD1351_RED
-#define PANAPLEX_COLOUR        (SSD1351_RED | 0x03e0)
-#define PETROL_STATION_COLOUR  SSD1351_RED   // But some petrol stations use green
-
 #define UART_RX_BUFFER_SIZE  (128)
 #define UART_RX_BUFFER_MASK (UART_RX_BUFFER_SIZE - 1)
 #if (UART_RX_BUFFER_SIZE & UART_RX_BUFFER_MASK) != 0
@@ -132,15 +127,6 @@ struct UART_BUFFER
 {
     struct UART_TX_BUFFER tx;
     struct UART_RX_BUFFER rx;
-};
-
-// What style digits would we prefer?
-enum STYLE {
-   PANAPLEX_STYLE,
-   LED_BAR_STYLE,
-   LED_DOT_STYLE,
-   PETROL_STATION_STYLE,
-   VFD_STYLE
 };
 
 
@@ -1679,10 +1665,6 @@ static void initMillisecondTimer(void)
 
 int main(void)
 {
-   uint32_t end;
-   uint32_t frame;
-   uint8_t flag = 0;
-   
    initMCU();
    initGPIOs();
    initUARTs();
@@ -1697,78 +1679,7 @@ int main(void)
    
    game_setup();
    
-   end = millis() + 500u;
-   frame = millis() + 40u;
-   
    while (1)
       game_loop();
-   
-   while (1) {
-      if (Tick) {
-         if (millis() >= end) {
-            end = millis() + 500u;
-            
-            if (flag) {
-               GPIOC->BSRR = GPIO_BSRR_BR13; // GPIO pin PC13 LOW, LED on
-            }
-            else {
-               GPIOC->BSRR = GPIO_BSRR_BS13; // GPIO pin PC13 HIGH, LED off
-            }
-            
-            flag = !flag;
-            
-            printf("millis() = %ld\n", millis());
-         }
-         
-         if (millis() >= frame) {
-            frame = millis() + 40u;
-            
-            const uint16_t ana1 = analogRead(1) / 32;
-            const uint16_t ana2 = analogRead(8) / 32;
-            fillRect(0, 32, 127, 63, SSD1351_WHITE, SSD1351_BLACK);
-            fillRect(1, 33, ana1, 47, SSD1351_BLUE, SSD1351_BLUE);
-            fillRect(1, 48, ana2, 62, SSD1351_BLUE, SSD1351_BLUE);
-            updscreen(32, 63);
-         }
-         
-         Tick = 0;
-      }
-      
-      if (RtcTick) {
-         // Do nothing
-         RtcTick = 0;
-      }
-      
-      if (UART1RxAvailable()) {
-         const uint8_t ch = UART1RxByte();
-         
-         printf("UART1: %02x\n", ch);
-         switch (ch) {
-         case 'r':
-         case 'R':
-            setRect(0, 0, MAXX - 1, MAXY - 1, SSD1351_WHITE);
-            updscreen(0, MAXY - 1);
-            break;
-         case 'q':
-         case 'Q':
-            drawVline(MAXX / 4,       0, MAXY - 1, SSD1351_WHITE);
-            drawVline(MAXX / 2,       0, MAXY - 1, SSD1351_WHITE);
-            drawVline((MAXX * 3) / 4, 0, MAXY - 1, SSD1351_WHITE);
-            drawHline(0, MAXX - 1, MAXY / 4, SSD1351_WHITE);
-            drawHline(0, MAXX - 1, MAXY / 2, SSD1351_WHITE);
-            drawHline(0, MAXX - 1, (MAXY * 3) / 4, SSD1351_WHITE);
-            updscreen(0, MAXY - 1);
-            break;
-         case '/':
-            printf("analogRead = %d, %d\n", analogRead(1), analogRead(8));
-            break;
-         case 'z':
-         case 'Z':
-            memset(Frame, 0, sizeof (Frame));
-            updscreen(0, MAXY - 1);
-            break;
-         }
-      }
-   }
 }
 
