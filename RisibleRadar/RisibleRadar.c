@@ -178,6 +178,16 @@ bool Axes = false;
 // The colour frame buffer, 32k bytes
 uint16_t Frame[MAXY][MAXX];
 
+uint16_t TargetColr[7] = {
+   16 << 5,                   // 0
+   24 << 5,                   // 1
+   32 << 5,                   // 2
+   48 << 5,                   // 3
+   56 << 5,                   // 4
+   SSD1351_GREEN,             // 5
+   SSD1351_GREEN | (16 << 11) // 6
+};
+
 volatile uint32_t Milliseconds = 0;
 volatile uint8_t Tick = 0;
 volatile uint8_t RtcTick = 0;
@@ -1397,9 +1407,11 @@ void game_loop(void)
 
       // Add un-faded echoes
       for (e = 0; e < NECHOES; e++) {
-         if (Echo[e].age > 0)
-            circle(Echo[e].x, Echo[e].y, Echo[e].rad, SSD1351_GREEN, SSD1351_GREEN);
-
+         if (Echo[e].age > 0) {
+            const uint16_t colr = TargetColr[(Echo[e].age + 22) / 45];
+            circle(Echo[e].x, Echo[e].y, Echo[e].rad, colr, colr);
+         }
+         
          Echo[e].age -= SCANNER_INC_DEGREES;
       }
     
